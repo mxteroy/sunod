@@ -1,0 +1,6 @@
+{
+  "src": "./client",
+  "language": "typescript",
+  "schema": "./server/src/schema/schema.generated.graphql",
+  "exclude": ["**/node_modules/**", "**/__mocks__/**", "**/__generated__/**"]
+}
