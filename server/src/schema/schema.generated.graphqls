@@ -1,0 +1,38 @@
+type AuthPayload {
+  accessToken: String!
+  user: User!
+}
+
+scalar DateTime
+
+scalar JSON
+
+type Mutation {
+  loginAnonymous: AuthPayload!
+  loginWithEmail(email: String!, password: String!): AuthPayload!
+  loginWithGoogle(idToken: String!): AuthPayload!
+  logout: Boolean!
+  refreshSession: RefreshPayload!
+  registerWithEmail(email: String!, password: String!): AuthPayload!
+}
+
+type Query {
+  me: User
+}
+
+type RefreshPayload {
+  accessToken: String!
+}
+
+type User {
+  country: String
+  handle: String
+  id: ID!
+  role: UserRole!
+}
+
+enum UserRole {
+  ADMIN
+  MOD
+  USER
+}
