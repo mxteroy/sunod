@@ -1,0 +1,23 @@
+{
+  "include": ["src/**/*", "../shared/*"],
+  "compilerOptions": {
+    "baseUrl": "./",
+    "rootDirs": ["src"],
+    "outDir": "dist",
+    "module": "CommonJS",
+    "target": "ESNext",
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "strict": true,
+    "types": ["node"],
+    "paths": {
+      "*": ["*"],
+      "@/*": ["./src/*"],
+      "@shared/*": ["../shared/*"],
+      "@prisma/*": ["./prisma/*"],
+      "@src/*": ["./src/*"],
+      "src/*": ["./src/*"]
+    }
+  },
+  "exclude": ["./src/schema/resolvers.generated.ts"]
+}
