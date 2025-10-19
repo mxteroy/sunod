@@ -1,0 +1,21 @@
+{
+  "name": "root",
+  "private": true,
+  "workspaces": [
+    "server"
+  ],
+  "scripts": {
+    "start-server": "cd server && yarn start",
+    "relay": "relay-compiler",
+    "relay-watch": "yarn relay-compiler --watch",
+    "heroku-postbuild": "cd server && yarn install && npx prisma generate"
+  },
+  "prisma": {
+    "schema": "server/prisma/schema.prisma"
+  },
+  "devDependencies": {
+    "babel-plugin-relay": "^18.2.0",
+    "graphql": "^16.10.0",
+    "relay-compiler": "^18.2.0"
+  }
+}
