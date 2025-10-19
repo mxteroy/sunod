@@ -1,0 +1,68 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+enum UserRole {
+  USER
+  MOD
+  ADMIN
+}
+
+model User {
+  id             String        @id @default(cuid())
+  handle         String?       @unique
+  email          String?       @unique
+  authProvider   String?       // e.g., "oauth-google", "anon"
+  externalId     String?       @unique // provider user id if applicable
+  country        String?       // ISO-2 for analytics 
+  lastPlayAt     DateTime?     @db.Timestamptz
+  role           UserRole      @default(USER)
+
+  authSessions   AuthSession[]
+
+  passwordHash   String?  // bcrypt/argon2 hash if using email+password
+  emailVerified  Boolean  @default(false)
+
+  createdAt      DateTime      @default(now()) @db.Timestamptz
+  updatedAt      DateTime      @updatedAt @db.Timestamptz
+}
+
+/**
+ * Refresh token storage for web:
+ * - Store ONLY a hash of the refresh token (refreshHash).
+ * - Issue new row on each rotation; revoke old one (revokedAt set).
+ * - familyId groups a rotating "token family" (useful for replay detection).
+ * - rotatedFromId links to the previous token in the family.
+ */
+model AuthSession {
+  id             String     @id @default(cuid())
+  userId         String
+  // Security: store a strong hash (e.g., argon2/bcrypt/sha256+pepper) of the refresh token
+  refreshHash    String     @unique
+  familyId       String     // stable per login, new on full re-login
+  rotatedFromId  String?    // previous AuthSession.id if rotated
+  userAgent      String?
+  ip             String?
+  lastUsedAt     DateTime?  @db.Timestamptz
+  expiresAt      DateTime   @db.Timestamptz
+  revokedAt      DateTime?  @db.Timestamptz
+  revokedReason  String?
+
+  user           User       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  rotatedFrom    AuthSession? @relation("RotationChain", fields: [rotatedFromId], references: [id])
+  rotatedTo      AuthSession[] @relation("RotationChain")
+
+  createdAt      DateTime   @default(now()) @db.Timestamptz
+  updatedAt      DateTime   @updatedAt @db.Timestamptz
+
+  @@index([userId, expiresAt])
+  @@index([familyId])
+  @@index([revokedAt])
+}
