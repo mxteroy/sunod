@@ -24,6 +24,13 @@ type RefreshPayload {
   accessToken: String!
 }
 
+type Space {
+  createdAt: String!
+  id: ID!
+  schema: JSON!
+  updatedAt: String!
+}
+
 type User {
   country: String
   handle: String

@@ -66,3 +66,10 @@ model AuthSession {
   @@index([familyId])
   @@index([revokedAt])
 }
+
+model Space {
+  id        String   @id @default(cuid())
+  schema    Json     // SpaceDoc JSON; validate with zSpace at API boundary
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+}
