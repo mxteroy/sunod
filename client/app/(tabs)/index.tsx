@@ -1,98 +1,72 @@
-import { Image } from 'expo-image';
-import { Platform, StyleSheet } from 'react-native';
-
-import { HelloWave } from '@/components/hello-wave';
-import ParallaxScrollView from '@/components/parallax-scroll-view';
-import { ThemedText } from '@/components/themed-text';
-import { ThemedView } from '@/components/themed-view';
-import { Link } from 'expo-router';
+import EventBasedRenderer from "@/core/renderer/EventBasedRenderer";
+import { interactiveDraggableEvents } from "@/core/renderer/eventExamples";
+import type { SpaceEvent } from "@shared/schema";
+import { useEffect, useState } from "react";
+import { SafeAreaView } from "react-native-safe-area-context";
 
 export default function HomeScreen() {
-  return (
-    <ParallaxScrollView
-      headerBackgroundColor={{ light: '#A1CEDC', dark: '#1D3D47' }}
-      headerImage={
-        <Image
-          source={require('@/assets/images/partial-react-logo.png')}
-          style={styles.reactLogo}
-        />
-      }>
-      <ThemedView style={styles.titleContainer}>
-        <ThemedText type="title">Welcome!</ThemedText>
-        <HelloWave />
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 1: Try it</ThemedText>
-        <ThemedText>
-          Edit <ThemedText type="defaultSemiBold">app/(tabs)/index.tsx</ThemedText> to see changes.
-          Press{' '}
-          <ThemedText type="defaultSemiBold">
-            {Platform.select({
-              ios: 'cmd + d',
-              android: 'cmd + m',
-              web: 'F12',
-            })}
-          </ThemedText>{' '}
-          to open developer tools.
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <Link href="/modal">
-          <Link.Trigger>
-            <ThemedText type="subtitle">Step 2: Explore</ThemedText>
-          </Link.Trigger>
-          <Link.Preview />
-          <Link.Menu>
-            <Link.MenuAction title="Action" icon="cube" onPress={() => alert('Action pressed')} />
-            <Link.MenuAction
-              title="Share"
-              icon="square.and.arrow.up"
-              onPress={() => alert('Share pressed')}
-            />
-            <Link.Menu title="More" icon="ellipsis">
-              <Link.MenuAction
-                title="Delete"
-                icon="trash"
-                destructive
-                onPress={() => alert('Delete pressed')}
-              />
-            </Link.Menu>
-          </Link.Menu>
-        </Link>
+  const [events, setEvents] = useState<SpaceEvent[]>([]);
 
-        <ThemedText>
-          {`Tap the Explore tab to learn more about what's included in this starter app.`}
-        </ThemedText>
-      </ThemedView>
-      <ThemedView style={styles.stepContainer}>
-        <ThemedText type="subtitle">Step 3: Get a fresh start</ThemedText>
-        <ThemedText>
-          {`When you're ready, run `}
-          <ThemedText type="defaultSemiBold">npm run reset-project</ThemedText> to get a fresh{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> directory. This will move the current{' '}
-          <ThemedText type="defaultSemiBold">app</ThemedText> to{' '}
-          <ThemedText type="defaultSemiBold">app-example</ThemedText>.
-        </ThemedText>
-      </ThemedView>
-    </ParallaxScrollView>
+  useEffect(() => {
+    console.log(
+      "HomeScreen mounted - loading interactive draggable demo incrementally"
+    );
+
+    // Start with just shared values and root
+    const initialEvents = interactiveDraggableEvents.slice(0, 15); // All shared values + root
+    setEvents(initialEvents);
+    console.log("Initial render with", initialEvents.length, "events");
+
+    // Add main draggable after 300ms
+    setTimeout(() => {
+      const draggableEvents = interactiveDraggableEvents.slice(0, 17); // Include draggable view
+      setEvents(draggableEvents);
+      console.log("Added draggable container");
+    }, 300);
+
+    // Add inner elements progressively
+    setTimeout(() => {
+      const withInner = interactiveDraggableEvents.slice(0, 25); // Add all inner elements
+      setEvents(withInner);
+      console.log("Added inner elements");
+    }, 600);
+
+    // Add controller draggable
+    setTimeout(() => {
+      const withController = interactiveDraggableEvents.slice(0, 29); // Include controller
+      setEvents(withController);
+      console.log("Added controller");
+    }, 900);
+
+    // Add title
+    setTimeout(() => {
+      const withTitle = interactiveDraggableEvents.slice(0, 31);
+      setEvents(withTitle);
+      console.log("Added title");
+    }, 1200);
+
+    // Add button
+    setTimeout(() => {
+      const withButton = interactiveDraggableEvents.slice(0, 33);
+      setEvents(withButton);
+      console.log("Added button");
+    }, 1500);
+
+    // Add status text (complete)
+    setTimeout(() => {
+      setEvents(interactiveDraggableEvents);
+      console.log(
+        "Fully loaded! Total events:",
+        interactiveDraggableEvents.length
+      );
+    }, 1800);
+  }, []);
+
+  console.log("HomeScreen render - total events:", events.length);
+
+  return (
+    <SafeAreaView style={{ flex: 1 }} edges={["top"]}>
+      <EventBasedRenderer events={events} />
+    </SafeAreaView>
   );
 }
-
-const styles = StyleSheet.create({
-  titleContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 8,
-  },
-  stepContainer: {
-    gap: 8,
-    marginBottom: 8,
-  },
-  reactLogo: {
-    height: 178,
-    width: 290,
-    bottom: 0,
-    left: 0,
-    position: 'absolute',
-  },
-});

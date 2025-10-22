@@ -3,7 +3,11 @@ import {
   GraphQLScalarType,
   GraphQLScalarTypeConfig,
 } from "graphql";
-import { UserRole as PrismaUserRole, User as PrismaUser } from "@prisma/client";
+import {
+  UserRole as PrismaUserRole,
+  User as PrismaUser,
+  Space as PrismaSpace,
+} from "@prisma/client";
 import { Context } from "@src/auth/context";
 export type Maybe<T> = T | null | undefined;
 export type InputMaybe<T> = T | null | undefined;
@@ -82,6 +86,14 @@ export type Query = {
 export type RefreshPayload = {
   __typename?: "RefreshPayload";
   accessToken: Scalars["String"]["output"];
+};
+
+export type Space = {
+  __typename?: "Space";
+  createdAt: Scalars["String"]["output"];
+  id: Scalars["ID"]["output"];
+  schema: Scalars["JSON"]["output"];
+  updatedAt: Scalars["String"]["output"];
 };
 
 export type User = {
@@ -214,8 +226,9 @@ export type ResolversTypes = ResolversObject<{
   Boolean: ResolverTypeWrapper<Scalars["Boolean"]["output"]>;
   Query: ResolverTypeWrapper<{}>;
   RefreshPayload: ResolverTypeWrapper<RefreshPayload>;
-  User: ResolverTypeWrapper<PrismaUser>;
+  Space: ResolverTypeWrapper<PrismaSpace>;
   ID: ResolverTypeWrapper<Scalars["ID"]["output"]>;
+  User: ResolverTypeWrapper<PrismaUser>;
   UserRole: ResolverTypeWrapper<PrismaUserRole>;
 }>;
 
@@ -231,8 +244,9 @@ export type ResolversParentTypes = ResolversObject<{
   Boolean: Scalars["Boolean"]["output"];
   Query: {};
   RefreshPayload: RefreshPayload;
-  User: PrismaUser;
+  Space: PrismaSpace;
   ID: Scalars["ID"]["output"];
+  User: PrismaUser;
 }>;
 
 export type AuthPayloadResolvers<
@@ -308,6 +322,18 @@ export type RefreshPayloadResolvers<
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
 }>;
 
+export type SpaceResolvers<
+  ContextType = Context,
+  ParentType extends
+    ResolversParentTypes["Space"] = ResolversParentTypes["Space"],
+> = ResolversObject<{
+  createdAt: Resolver<ResolversTypes["String"], ParentType, ContextType>;
+  id: Resolver<ResolversTypes["ID"], ParentType, ContextType>;
+  schema: Resolver<ResolversTypes["JSON"], ParentType, ContextType>;
+  updatedAt: Resolver<ResolversTypes["String"], ParentType, ContextType>;
+  __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+}>;
+
 export type UserResolvers<
   ContextType = Context,
   ParentType extends
@@ -332,6 +358,7 @@ export type Resolvers<ContextType = Context> = ResolversObject<{
   Mutation: MutationResolvers<ContextType>;
   Query: QueryResolvers<ContextType>;
   RefreshPayload: RefreshPayloadResolvers<ContextType>;
+  Space: SpaceResolvers<ContextType>;
   User: UserResolvers<ContextType>;
   UserRole: UserRoleResolvers;
 }>;

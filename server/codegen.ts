@@ -12,6 +12,7 @@ const baseConfig = defineConfig({
     federation: true,
     mappers: {
       User: "@prisma/client#User as PrismaUser",
+      Space: "@prisma/client#Space as PrismaSpace",
 
       // Enums
       UserRole: "@prisma/client#UserRole as PrismaUserRole",

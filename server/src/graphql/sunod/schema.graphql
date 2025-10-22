@@ -1,0 +1,53 @@
+scalar DateTime
+scalar JSON
+
+# ---------- Enums ----------
+
+enum UserRole {
+  USER
+  MOD
+  ADMIN
+}
+
+# ---------- Auth Payloads ----------
+type AuthPayload {
+  user: User!
+  accessToken: String!
+}
+
+type RefreshPayload {
+  accessToken: String!
+}
+
+# ---------- Core Types ----------
+type User {
+  id: ID!
+  handle: String
+  country: String
+  role: UserRole!
+}
+
+# ----------  ----------
+
+type Space {
+  id: ID!
+  schema: JSON! # SpaceDoc validated by zSpace
+  createdAt: String!
+  updatedAt: String!
+}
+
+# ---------- Mutations ----------
+type Mutation {
+  # Auth
+  loginAnonymous: AuthPayload!
+  loginWithGoogle(idToken: String!): AuthPayload!
+  registerWithEmail(email: String!, password: String!): AuthPayload!
+  loginWithEmail(email: String!, password: String!): AuthPayload!
+  refreshSession: RefreshPayload!
+  logout: Boolean!
+}
+
+# ---------- Queries ----------
+type Query {
+  me: User
+}

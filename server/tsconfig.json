@@ -1,6 +1,7 @@
 {
   "include": ["src/**/*", "../shared/*"],
   "compilerOptions": {
+    "ignoreDeprecations": "6.0",
     "baseUrl": "./",
     "rootDirs": ["src"],
     "outDir": "dist",
