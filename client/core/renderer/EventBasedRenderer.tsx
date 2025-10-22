@@ -1,6 +1,7 @@
 import { Button } from "@/components/button/Button";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
+import { appleHoverInEasing, appleHoverOutEasing } from "@/core/easings";
 import { type SpaceEvent, type Style, type TextStyle } from "@shared/schema";
 import React, {
   useCallback,
@@ -13,10 +14,10 @@ import { TextStyle as RNTextStyle, StyleProp, ViewStyle } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, {
   Easing,
-  FadeOut,
   makeMutable,
   runOnUI,
   SlideInDown,
+  SlideOutDown,
   withTiming,
 } from "react-native-reanimated";
 import {
@@ -374,8 +375,8 @@ function RenderViewNode({
   // Wrap with animated view for layout transitions
   const AnimatedBody = (
     <Animated.View
-      entering={SlideInDown.duration(500).springify().damping(15)}
-      exiting={FadeOut.duration(200)}
+      entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
+      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
     >
       {gestures ? (
         <GestureDetector gesture={gestures}>{ViewBody}</GestureDetector>
@@ -401,8 +402,8 @@ function RenderTextNode({
 
   return (
     <Animated.View
-      entering={SlideInDown.duration(500).springify().damping(15)}
-      exiting={FadeOut.duration(200)}
+      entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
+      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
     >
       <ThemedText
         aStyle={[aStyle as StyleProp<RNTextStyle>]}
@@ -436,8 +437,8 @@ function RenderButtonNode({
 
   return (
     <Animated.View
-      entering={SlideInDown.duration(500).springify().damping(15)}
-      exiting={FadeOut.duration(200)}
+      entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
+      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
     >
       <Button
         title={node.text || ""}
