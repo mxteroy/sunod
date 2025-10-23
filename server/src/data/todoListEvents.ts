@@ -99,13 +99,40 @@ export const todoListEvents: SpaceEvent[] = [
         padding: 10,
         backgroundColor: { light: "#f0f0f0", dark: "#2a2a2a" },
         borderRadius: 8,
+        marginBottom: 8,
+        flexDirection: "row",
+        alignItems: "center",
+        justifyContent: "space-between",
       },
       children: [
         {
           id: "todoItemText",
           type: "Text",
           text: "{{todo.title}}",
-          style: {},
+          style: {
+            flex: 1,
+          },
+        },
+        {
+          id: "deleteTodoBtn",
+          type: "Button",
+          text: "Delete",
+          style: {
+            backgroundColor: { light: "#ff4444", dark: "#cc0000" },
+            padding: 8,
+            borderRadius: 4,
+          },
+          props: {
+            variant: "secondary",
+            size: "sm",
+          },
+          onPress: [
+            {
+              type: "deleteRecord",
+              collection: "todos",
+              id: "{{todo.id}}",
+            },
+          ],
         },
       ],
     } as any,

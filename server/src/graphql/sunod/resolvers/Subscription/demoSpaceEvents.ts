@@ -1,4 +1,4 @@
-import { interactiveDraggableEvents } from "../../../../data/demoSpaceEvents";
+import { todoListEvents } from "../../../../data/todoListEvents";
 import type { SubscriptionResolvers } from "./../../../../schema/types.generated";
 
 /**
@@ -7,13 +7,13 @@ import type { SubscriptionResolvers } from "./../../../../schema/types.generated
 async function* generateDemoSpaceEvents() {
   // Group events by their logical stages for progressive rendering
   const stages = [
-    { events: interactiveDraggableEvents.slice(0, 15), delay: 100 }, // All shared values + root
-    { events: interactiveDraggableEvents.slice(15, 17), delay: 300 }, // Main draggable container
-    { events: interactiveDraggableEvents.slice(17, 25), delay: 300 }, // Inner elements
-    { events: interactiveDraggableEvents.slice(25, 29), delay: 300 }, // Controller
-    { events: interactiveDraggableEvents.slice(29, 31), delay: 300 }, // Controller label + title
-    { events: interactiveDraggableEvents.slice(31, 33), delay: 300 }, // Button
-    { events: interactiveDraggableEvents.slice(33), delay: 300 }, // Status text
+    { events: todoListEvents.slice(0, 15), delay: 100 }, // All shared values + root
+    { events: todoListEvents.slice(15, 17), delay: 300 }, // Main draggable container
+    { events: todoListEvents.slice(17, 25), delay: 300 }, // Inner elements
+    { events: todoListEvents.slice(25, 29), delay: 300 }, // Controller
+    { events: todoListEvents.slice(29, 31), delay: 300 }, // Controller label + title
+    { events: todoListEvents.slice(31, 33), delay: 300 }, // Button
+    { events: todoListEvents.slice(33), delay: 300 }, // Status text
   ];
 
   for (const stage of stages) {
