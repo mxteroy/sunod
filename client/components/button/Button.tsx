@@ -1,5 +1,6 @@
 // components/Button.tsx
 import { Selectable, SelectableState, TapEvent } from "@/core/Selectable";
+import { appleHoverInEasing, appleHoverOutEasing } from "@/core/easings";
 import { useThemeColor } from "@/hooks/useThemeColor";
 import React, { useCallback } from "react";
 import {
@@ -10,7 +11,6 @@ import {
   ViewStyle,
 } from "react-native";
 import {
-  Easing,
   interpolate,
   interpolateColor,
   useAnimatedStyle,
@@ -18,12 +18,6 @@ import {
   withTiming,
 } from "react-native-reanimated";
 import { ThemedText } from "../ThemedText";
-
-// Apple hover-in easing (easeOut)
-const appleHoverInEasing = Easing.bezier(0.25, 0.46, 0.45, 0.94);
-
-// Apple hover-out easing (easeIn)
-const appleHoverOutEasing = Easing.bezier(0.55, 0.08, 0.68, 0.53);
 
 type ButtonVariant = "primary" | "secondary" | "accent" | "ghost";
 type ButtonSize = "sm" | "md" | "lg";
@@ -217,11 +211,3 @@ export const Button: React.FC<ButtonProps> = ({
     </Selectable>
   );
 };
-
-const styles = StyleSheet.create({
-  base: {
-    alignItems: "center",
-    justifyContent: "center",
-    overflow: "hidden",
-  },
-});

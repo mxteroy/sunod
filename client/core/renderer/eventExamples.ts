@@ -569,7 +569,7 @@ export const incrementalBuildEvents: SpaceEvent[] = [
 export function simulateRealTimeUpdates(
   onEvent: (event: SpaceEvent) => void
 ): () => void {
-  const timeouts: NodeJS.Timeout[] = [];
+  const timeouts: ReturnType<typeof setTimeout>[] = [];
 
   // Add a new item after 1 second
   timeouts.push(
