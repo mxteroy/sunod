@@ -347,6 +347,43 @@ export const typeDefs = {
           type: { kind: "NamedType", name: { kind: "Name", value: "User" } },
           directives: [],
         },
+        {
+          kind: "FieldDefinition",
+          name: { kind: "Name", value: "demoSpaceEvents" },
+          arguments: [],
+          type: {
+            kind: "NonNullType",
+            type: {
+              kind: "ListType",
+              type: {
+                kind: "NonNullType",
+                type: {
+                  kind: "NamedType",
+                  name: { kind: "Name", value: "JSON" },
+                },
+              },
+            },
+          },
+          directives: [],
+        },
+      ],
+    },
+    {
+      kind: "ObjectTypeDefinition",
+      name: { kind: "Name", value: "Subscription" },
+      interfaces: [],
+      directives: [],
+      fields: [
+        {
+          kind: "FieldDefinition",
+          name: { kind: "Name", value: "demoSpaceEvents" },
+          arguments: [],
+          type: {
+            kind: "NonNullType",
+            type: { kind: "NamedType", name: { kind: "Name", value: "JSON" } },
+          },
+          directives: [],
+        },
       ],
     },
     {
@@ -364,6 +401,14 @@ export const typeDefs = {
             name: { kind: "Name", value: "Mutation" },
           },
           operation: "mutation",
+        },
+        {
+          kind: "OperationTypeDefinition",
+          type: {
+            kind: "NamedType",
+            name: { kind: "Name", value: "Subscription" },
+          },
+          operation: "subscription",
         },
       ],
     },

@@ -1,11 +1,10 @@
 {
   "include": ["src/**/*", "../shared/*"],
   "compilerOptions": {
-    "ignoreDeprecations": "6.0",
     "baseUrl": "./",
     "rootDirs": ["src"],
     "outDir": "dist",
-    "module": "CommonJS",
+    "module": "node16",
     "target": "ESNext",
     "skipLibCheck": true,
     "esModuleInterop": true,

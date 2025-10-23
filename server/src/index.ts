@@ -1,6 +1,5 @@
 import debugLib from "debug";
-import http from "http";
-import app from "./app";
+import app, { initializeServer } from "./app";
 
 const debug = debugLib("server:server");
 
@@ -12,16 +11,25 @@ console.log("Using port:", port);
 app.set("port", port);
 
 /**
- * Create HTTP server.
+ * Initialize GraphQL server and start listening
  */
-const server = http.createServer(app);
+let server: any;
 
-/**
- * Listen on provided port, on all network interfaces.
- */
-server.listen(port);
-server.on("error", onError);
-server.on("listening", onListening);
+(async () => {
+  try {
+    server = await initializeServer();
+
+    /**
+     * Listen on provided port, on all network interfaces.
+     */
+    server.listen(port);
+    server.on("error", onError);
+    server.on("listening", onListening);
+  } catch (error) {
+    console.error("Failed to initialize server:", error);
+    process.exit(1);
+  }
+})();
 
 /**
  * Normalize a port into a number, string, or false.
