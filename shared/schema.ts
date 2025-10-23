@@ -231,8 +231,33 @@ export const zStyle = z.object({
   backgroundColor: zColorInput.optional(), // ← updated
   borderRadius: zNumVal.optional(),
   padding: zNumVal.optional(),
+  paddingTop: zNumVal.optional(),
+  paddingBottom: zNumVal.optional(),
+  paddingLeft: zNumVal.optional(),
+  paddingRight: zNumVal.optional(),
   margin: zNumVal.optional(),
+  marginBottom: zNumVal.optional(),
+  marginTop: zNumVal.optional(),
+  marginLeft: zNumVal.optional(),
+  marginRight: zNumVal.optional(),
+  gap: zNumVal.optional(),
   flex: zNumVal.optional(),
+  flexDirection: z
+    .enum(["row", "column", "row-reverse", "column-reverse"])
+    .optional(),
+  alignItems: z
+    .enum(["flex-start", "flex-end", "center", "stretch", "baseline"])
+    .optional(),
+  justifyContent: z
+    .enum([
+      "flex-start",
+      "flex-end",
+      "center",
+      "space-between",
+      "space-around",
+      "space-evenly",
+    ])
+    .optional(),
   transform: zTransform.optional(),
 });
 

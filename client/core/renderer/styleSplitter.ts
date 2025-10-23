@@ -131,8 +131,24 @@ const NUMERIC_KEYS: (keyof SchemaStyle)[] = [
   "opacity",
   "borderRadius",
   "padding",
+  "paddingTop",
+  "paddingBottom",
+  "paddingLeft",
+  "paddingRight",
   "margin",
+  "marginBottom",
+  "marginTop",
+  "marginLeft",
+  "marginRight",
+  "gap",
   "flex",
+];
+
+// Non-animated string/enum properties
+const STATIC_STRING_KEYS: (keyof SchemaStyle)[] = [
+  "flexDirection",
+  "alignItems",
+  "justifyContent",
 ];
 
 // Returns two style objects you can spread in your component style prop.
@@ -165,6 +181,15 @@ export function splitSchemaStyle(
   // Non-animatable strings: keep static for now (backgroundColor may be theme/token/raw)
   if (style?.backgroundColor != null) {
     staticOut.backgroundColor = style.backgroundColor;
+  }
+
+  // Static string/enum properties (flexDirection, alignItems, justifyContent, etc.)
+  for (const k of STATIC_STRING_KEYS) {
+    // @ts-ignore
+    const v = style?.[k];
+    if (v != null) {
+      staticOut[k] = v;
+    }
   }
 
   // Transform: split per-property
@@ -271,6 +296,15 @@ export function useSplitAnimatedStyle(
   // Non-animatable strings: keep static for now (backgroundColor may be theme/token/raw)
   if (style?.backgroundColor != null) {
     staticOut.backgroundColor = style.backgroundColor;
+  }
+
+  // Static string/enum properties (flexDirection, alignItems, justifyContent, etc.)
+  for (const k of STATIC_STRING_KEYS) {
+    // @ts-ignore
+    const v = style?.[k];
+    if (v != null) {
+      staticOut[k] = v;
+    }
   }
 
   // Transform: split per-property
