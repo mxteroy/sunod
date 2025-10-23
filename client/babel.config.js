@@ -14,8 +14,9 @@ module.exports = function (api) {
           extensions: [".tsx", ".ts", ".js", ".json"],
         },
       ],
-      // 👇 keep this last for Reanimated
+      "relay",
       "@babel/plugin-proposal-export-namespace-from",
+      // 👇 keep this last for Reanimated
       "react-native-reanimated/plugin",
     ],
   };

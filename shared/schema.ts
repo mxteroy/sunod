@@ -100,6 +100,28 @@ export const zAnimateAction = z.object({
     .optional(),
 });
 
+/** Action: CreateRecord - Add a new record to a collection */
+export const zCreateRecordAction = z.object({
+  type: z.literal("createRecord"),
+  collection: z.string(), // collection key (e.g., "todos")
+  record: z.any(), // record data (will be validated against collection shape)
+});
+
+/** Action: UpdateRecord - Update an existing record */
+export const zUpdateRecordAction = z.object({
+  type: z.literal("updateRecord"),
+  collection: z.string(),
+  id: z.string(), // record ID (can be a binding or literal)
+  patch: z.any(), // partial update
+});
+
+/** Action: DeleteRecord - Delete a record from a collection */
+export const zDeleteRecordAction = z.object({
+  type: z.literal("deleteRecord"),
+  collection: z.string(),
+  id: z.string(), // record ID
+});
+
 /** Union of all action types */
 export const zAction: z.ZodType<any> = z.lazy(() =>
   z.union([
@@ -108,6 +130,9 @@ export const zAction: z.ZodType<any> = z.lazy(() =>
     zConditionalAction,
     zDelayAction,
     zAnimateAction,
+    zCreateRecordAction,
+    zUpdateRecordAction,
+    zDeleteRecordAction,
   ])
 );
 
@@ -292,18 +317,55 @@ export const zButton = z.object({
   props: zButtonProps.optional(),
 });
 
+// ── Collections & List Rendering ──────────────────────────────────────────
+
+/** Collection definition - defines the shape of a data collection */
+export const zCollectionDef = z.object({
+  key: z.string(), // collection name (e.g., "todos", "sections")
+  shape: z.record(z.string(), z.any()), // field definitions
+  sort: z
+    .array(z.object({ field: z.string(), dir: z.enum(["asc", "desc"]) }))
+    .optional(),
+  filter: z.any().optional(),
+});
+
+/** Collection query - reads from a collection */
+export const zCollectionQuery = z.object({
+  type: z.literal("collection"),
+  key: z.string(), // collection name
+  where: z.any().optional(), // simple predicates (reserved for future)
+  orderBy: z
+    .array(z.object({ field: z.string(), dir: z.enum(["asc", "desc"]) }))
+    .optional(),
+  limit: z.number().optional(),
+});
+
+/** For node - renders a template for each item in a collection */
+export const zFor = z.object({
+  type: z.literal("For"),
+  id: z.string(),
+  from: zCollectionQuery, // data source
+  as: z.string().default("item"), // loop variable name
+  keyExpr: z.string().optional(), // expression for key (e.g., "item.id")
+  horizontal: z.boolean().optional(), // if true, render horizontally
+  style: zStyle.optional(), // style for the list container
+  template: z.lazy(() => zNode), // subtree rendered for each item
+});
+
 /** Node union */
 export const zNode: z.ZodType<any> = z.discriminatedUnion("type", [
   zView,
   zThemedView,
   zText,
   zButton,
+  zFor,
 ]);
 
 /** Top-level Space document for a single root View */
 export const zSpace = z.object({
   id: z.string(),
   sharedValues: z.array(zSharedValue).default([]),
+  collections: z.array(zCollectionDef).default([]), // collection definitions
   root: z.union([zView, zThemedView]),
 });
 
@@ -319,6 +381,9 @@ export type LogAction = z.infer<typeof zLogAction>;
 export type ConditionalAction = z.infer<typeof zConditionalAction>;
 export type DelayAction = z.infer<typeof zDelayAction>;
 export type AnimateAction = z.infer<typeof zAnimateAction>;
+export type CreateRecordAction = z.infer<typeof zCreateRecordAction>;
+export type UpdateRecordAction = z.infer<typeof zUpdateRecordAction>;
+export type DeleteRecordAction = z.infer<typeof zDeleteRecordAction>;
 export type Action = z.infer<typeof zAction>;
 export type ActionHandler = z.infer<typeof zActionHandler>;
 
@@ -332,6 +397,9 @@ export type ViewNode = z.infer<typeof zView>;
 export type ThemedViewNode = z.infer<typeof zThemedView>;
 export type TextNode = z.infer<typeof zText>;
 export type ButtonNode = z.infer<typeof zButton>;
+export type ForNode = z.infer<typeof zFor>;
+export type CollectionDef = z.infer<typeof zCollectionDef>;
+export type CollectionQuery = z.infer<typeof zCollectionQuery>;
 export type SpaceDoc = z.infer<typeof zSpace>;
 export type ColorOverride = z.infer<typeof zColorOverride>;
 export type ThemeColorName = z.infer<typeof zThemeColorName>;
@@ -361,7 +429,7 @@ export const zUpdateSharedValueEvent = z.object({
 export const zCreateViewEvent = z.object({
   event: z.literal("createView"),
   id: z.string(),
-  type: z.enum(["View", "ThemedView", "Text", "Button"]),
+  type: z.enum(["View", "ThemedView", "Text", "Button", "For"]),
   style: z.union([zStyle, zTextStyle]).optional(),
   // View-specific props
   text: z.string().optional(), // for Text/Button
@@ -372,6 +440,12 @@ export const zCreateViewEvent = z.object({
   onPanGestureChange: zActionHandler.optional(),
   onPanGestureEnd: zActionHandler.optional(),
   onPress: zActionHandler.optional(),
+  // For node specific
+  from: zCollectionQuery.optional(),
+  as: z.string().optional(),
+  keyExpr: z.string().optional(),
+  horizontal: z.boolean().optional(),
+  template: z.lazy(() => zNode).optional(),
 });
 
 /** Add a view as a child of another view */
