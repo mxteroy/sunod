@@ -17,6 +17,7 @@ type Mutation {
 }
 
 type Query {
+  demoSpaceEvents: [JSON!]!
   me: User
 }
 
@@ -29,6 +30,10 @@ type Space {
   id: ID!
   schema: JSON!
   updatedAt: String!
+}
+
+type Subscription {
+  demoSpaceEvents: JSON!
 }
 
 type User {

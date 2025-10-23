@@ -80,6 +80,7 @@ export type MutationregisterWithEmailArgs = {
 
 export type Query = {
   __typename?: "Query";
+  demoSpaceEvents: Array<Scalars["JSON"]["output"]>;
   me: Maybe<User>;
 };
 
@@ -94,6 +95,11 @@ export type Space = {
   id: Scalars["ID"]["output"];
   schema: Scalars["JSON"]["output"];
   updatedAt: Scalars["String"]["output"];
+};
+
+export type Subscription = {
+  __typename?: "Subscription";
+  demoSpaceEvents: Scalars["JSON"]["output"];
 };
 
 export type User = {
@@ -228,6 +234,7 @@ export type ResolversTypes = ResolversObject<{
   RefreshPayload: ResolverTypeWrapper<RefreshPayload>;
   Space: ResolverTypeWrapper<PrismaSpace>;
   ID: ResolverTypeWrapper<Scalars["ID"]["output"]>;
+  Subscription: ResolverTypeWrapper<{}>;
   User: ResolverTypeWrapper<PrismaUser>;
   UserRole: ResolverTypeWrapper<PrismaUserRole>;
 }>;
@@ -246,6 +253,7 @@ export type ResolversParentTypes = ResolversObject<{
   RefreshPayload: RefreshPayload;
   Space: PrismaSpace;
   ID: Scalars["ID"]["output"];
+  Subscription: {};
   User: PrismaUser;
 }>;
 
@@ -310,6 +318,11 @@ export type QueryResolvers<
   ParentType extends
     ResolversParentTypes["Query"] = ResolversParentTypes["Query"],
 > = ResolversObject<{
+  demoSpaceEvents: Resolver<
+    Array<ResolversTypes["JSON"]>,
+    ParentType,
+    ContextType
+  >;
   me: Resolver<Maybe<ResolversTypes["User"]>, ParentType, ContextType>;
 }>;
 
@@ -332,6 +345,19 @@ export type SpaceResolvers<
   schema: Resolver<ResolversTypes["JSON"], ParentType, ContextType>;
   updatedAt: Resolver<ResolversTypes["String"], ParentType, ContextType>;
   __isTypeOf?: IsTypeOfResolverFn<ParentType, ContextType>;
+}>;
+
+export type SubscriptionResolvers<
+  ContextType = Context,
+  ParentType extends
+    ResolversParentTypes["Subscription"] = ResolversParentTypes["Subscription"],
+> = ResolversObject<{
+  demoSpaceEvents: SubscriptionResolver<
+    ResolversTypes["JSON"],
+    "demoSpaceEvents",
+    ParentType,
+    ContextType
+  >;
 }>;
 
 export type UserResolvers<
@@ -359,6 +385,7 @@ export type Resolvers<ContextType = Context> = ResolversObject<{
   Query: QueryResolvers<ContextType>;
   RefreshPayload: RefreshPayloadResolvers<ContextType>;
   Space: SpaceResolvers<ContextType>;
+  Subscription: SubscriptionResolvers<ContextType>;
   User: UserResolvers<ContextType>;
   UserRole: UserRoleResolvers;
 }>;

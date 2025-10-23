@@ -50,4 +50,10 @@ type Mutation {
 # ---------- Queries ----------
 type Query {
   me: User
+  demoSpaceEvents: [JSON!]!
+}
+
+# ---------- Subscriptions ----------
+type Subscription {
+  demoSpaceEvents: JSON!
 }

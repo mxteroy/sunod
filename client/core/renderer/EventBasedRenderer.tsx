@@ -2,7 +2,13 @@ import { Button } from "@/components/button/Button";
 import { ThemedText } from "@/components/ThemedText";
 import { ThemedView } from "@/components/ThemedView";
 import { appleHoverInEasing, appleHoverOutEasing } from "@/core/easings";
-import { type SpaceEvent, type Style, type TextStyle } from "@shared/schema";
+import {
+  type CollectionQuery,
+  type SpaceEvent,
+  type Style,
+  type TextStyle,
+} from "@shared/schema";
+import { FlashList } from "@shopify/flash-list";
 import React, {
   useCallback,
   useEffect,
@@ -20,6 +26,9 @@ import Animated, {
   SlideOutDown,
   withTiming,
 } from "react-native-reanimated";
+import type { StoreApi, UseBoundStore } from "zustand";
+import type { SpaceStore } from "../store";
+import { useSpaceStore } from "../store";
 import {
   useResolvedStyleColors,
   useResolvedTextStyleColors,
@@ -38,7 +47,7 @@ import { useSplitAnimatedStyle } from "./styleSplitter";
 // Node state stored in the renderer
 interface NodeState {
   id: string;
-  type: "View" | "ThemedView" | "Text" | "Button";
+  type: "View" | "ThemedView" | "Text" | "Button" | "For";
   style?: Style | TextStyle;
   text?: string;
   glassEffect?: boolean;
@@ -47,8 +56,14 @@ interface NodeState {
   onPanGestureChange?: any;
   onPanGestureEnd?: any;
   onPress?: any;
-  children: string[]; // child IDs
+  children: (string | NodeState)[]; // child IDs or inline node objects (for templates)
   parentId?: string;
+  // For node specific
+  from?: CollectionQuery;
+  as?: string;
+  keyExpr?: string;
+  horizontal?: boolean;
+  template?: NodeState;
 }
 
 // Helper to execute actions (copied from Renderer.tsx)
@@ -223,6 +238,16 @@ function executeAction(
       target.value = withTiming(toValue, { duration, easing });
       break;
     }
+
+    case "createRecord":
+    case "updateRecord":
+    case "deleteRecord":
+      // These actions need to run outside worklet context
+      // They will be handled by executeHandlerWithStore
+      console.warn(
+        `Data action ${action.type} called in worklet context - use executeHandlerWithStore instead`
+      );
+      break;
   }
 }
 
@@ -237,17 +262,66 @@ function executeHandler(
   }
 }
 
+// Non-worklet version that can handle data actions
+function executeHandlerWithStore(
+  handler: any[],
+  map: SVMap,
+  eventData: Record<string, number>,
+  store?: UseBoundStore<StoreApi<SpaceStore>>
+) {
+  for (const action of handler) {
+    if (!action || !action.type) continue;
+
+    // Handle data actions that need store access
+    if (
+      action.type === "createRecord" ||
+      action.type === "updateRecord" ||
+      action.type === "deleteRecord"
+    ) {
+      if (!store) {
+        console.warn(`${action.type} requires store but none provided`);
+        continue;
+      }
+
+      const storeState = store.getState();
+
+      if (action.type === "createRecord") {
+        const record = action.record || {};
+        storeState.createRecord(action.collection, record);
+        console.log("Created record in collection", action.collection, record);
+      } else if (action.type === "updateRecord") {
+        const patch = action.patch || {};
+        storeState.updateRecord(action.collection, action.id, patch);
+      } else if (action.type === "deleteRecord") {
+        storeState.deleteRecord(action.collection, action.id);
+      }
+    } else {
+      // For other actions, run them in worklet context
+      runOnUI(() => {
+        "worklet";
+        executeAction(action, map, eventData);
+      })();
+    }
+  }
+}
+
 // -------------------- Node Renderers --------------------
 function RenderViewNode({
   node,
   nodes,
   map,
   isRoot = false,
+  store,
+  itemContext,
+  itemVar,
 }: {
   node: NodeState;
   nodes: Map<string, NodeState>;
   map: SVMap;
   isRoot?: boolean;
+  store?: UseBoundStore<StoreApi<SpaceStore>>;
+  itemContext?: any;
+  itemVar?: string;
 }) {
   const themed = node.type === "ThemedView";
   const resolvedStyles = useResolvedStyleColors(node.style);
@@ -339,18 +413,39 @@ function RenderViewNode({
   const { staticStyle, aStyle } = useSplitAnimatedStyle(resolvedStyles, map);
 
   // Render children
-  const children = node.children.map((childId) => {
-    const childNode = nodes.get(childId);
-    if (!childNode) return null;
-    return (
-      <RenderNode
-        key={childId}
-        node={childNode}
-        nodes={nodes}
-        map={map}
-        isRoot={false}
-      />
-    );
+  const children = node.children.map((childIdOrNode, index) => {
+    // Handle both node IDs (string) and inline node objects (for templates)
+    if (typeof childIdOrNode === "string") {
+      const childNode = nodes.get(childIdOrNode);
+      if (!childNode) return null;
+      return (
+        <RenderNode
+          key={childIdOrNode}
+          node={childNode}
+          nodes={nodes}
+          map={map}
+          isRoot={false}
+          store={store}
+          itemContext={itemContext}
+          itemVar={itemVar}
+        />
+      );
+    } else if (typeof childIdOrNode === "object" && childIdOrNode.id) {
+      // Inline node object (used in templates)
+      return (
+        <RenderNode
+          key={childIdOrNode.id || index}
+          node={childIdOrNode as NodeState}
+          nodes={nodes}
+          map={map}
+          isRoot={false}
+          store={store}
+          itemContext={itemContext}
+          itemVar={itemVar}
+        />
+      );
+    }
+    return null;
   });
 
   const ViewBody = (
@@ -392,14 +487,40 @@ function RenderViewNode({
 function RenderTextNode({
   node,
   map,
+  store,
+  itemContext,
+  itemVar,
 }: {
   node: NodeState;
   nodes: Map<string, NodeState>;
   map: SVMap;
+  store?: UseBoundStore<StoreApi<SpaceStore>>;
+  itemContext?: any;
+  itemVar?: string;
 }) {
   const resolvedStyles = useResolvedTextStyleColors(node.style);
   const { staticStyle, aStyle } = useSplitAnimatedStyle(resolvedStyles, map);
 
+  // Resolve template strings like {{todo.title}}
+  const resolvedText = useMemo(() => {
+    if (!node.text || !itemContext || !itemVar) return node.text;
+
+    // Simple template string resolution: {{itemVar.field}}
+    return node.text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const trimmedPath = path.trim();
+
+      // Handle simple paths like "todo.title" or "item.done"
+      if (trimmedPath.startsWith(`${itemVar}.`)) {
+        const field = trimmedPath.substring(itemVar.length + 1);
+        const value = itemContext[field];
+        return value !== undefined ? String(value) : match;
+      }
+
+      return match;
+    });
+  }, [node.text, itemContext, itemVar]);
+
+  console.log("resolvedText", resolvedText);
   return (
     <Animated.View
       entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
@@ -409,7 +530,7 @@ function RenderTextNode({
         aStyle={[aStyle as StyleProp<RNTextStyle>]}
         style={staticStyle as StyleProp<RNTextStyle>}
       >
-        {node.text}
+        {resolvedText}
       </ThemedText>
     </Animated.View>
   );
@@ -418,20 +539,39 @@ function RenderTextNode({
 function RenderButtonNode({
   node,
   map,
+  store,
+  itemContext,
+  itemVar,
 }: {
   node: NodeState;
   nodes: Map<string, NodeState>;
   map: SVMap;
+  store?: UseBoundStore<StoreApi<SpaceStore>>;
+  itemContext?: any;
+  itemVar?: string;
 }) {
   const resolvedStyles = useResolvedStyleColors(node.style);
   const { staticStyle, aStyle } = useSplitAnimatedStyle(resolvedStyles, map);
 
+  // Resolve template strings in button text
+  const resolvedText = useMemo(() => {
+    if (!node.text || !itemContext || !itemVar) return node.text;
+
+    return node.text.replace(/\{\{([^}]+)\}\}/g, (match, path) => {
+      const trimmedPath = path.trim();
+      if (trimmedPath.startsWith(`${itemVar}.`)) {
+        const field = trimmedPath.substring(itemVar.length + 1);
+        const value = itemContext[field];
+        return value !== undefined ? String(value) : match;
+      }
+      return match;
+    });
+  }, [node.text, itemContext, itemVar]);
+
   const handlePress = () => {
     if (node.onPress) {
-      runOnUI(() => {
-        "worklet";
-        executeHandler(node.onPress, map, {});
-      })();
+      // Use executeHandlerWithStore to support data actions
+      executeHandlerWithStore(node.onPress, map, {}, store);
     }
   };
 
@@ -441,7 +581,7 @@ function RenderButtonNode({
       exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
     >
       <Button
-        title={node.text || ""}
+        title={resolvedText || ""}
         style={staticStyle as StyleProp<ViewStyle>}
         aStyle={aStyle as StyleProp<ViewStyle>}
         onPress={node.onPress ? handlePress : undefined}
@@ -450,41 +590,213 @@ function RenderButtonNode({
   );
 }
 
-function RenderNode({
+function RenderForNode({
   node,
   nodes,
   map,
-  isRoot = false,
+  store,
 }: {
   node: NodeState;
   nodes: Map<string, NodeState>;
   map: SVMap;
-  isRoot?: boolean;
+  store: UseBoundStore<StoreApi<SpaceStore>>;
 }) {
-  switch (node.type) {
-    case "View":
-    case "ThemedView":
+  const resolvedStyles = useResolvedStyleColors(node.style);
+  const { staticStyle, aStyle } = useSplitAnimatedStyle(resolvedStyles, map);
+
+  // Get collection data from Zustand store
+  const collectionKey = node.from?.key || "";
+
+  // Select the collection object itself, not the values array
+  // This prevents creating new arrays on every render
+  const collection = store(
+    useCallback(
+      (state: SpaceStore) => state.collections[collectionKey],
+      [collectionKey]
+    )
+  );
+
+  // Convert to array only when collection reference changes
+  const items = useMemo(
+    () => (collection ? Object.values(collection) : []),
+    [collection]
+  );
+
+  // Apply sorting if specified
+  const sortedItems = useMemo(() => {
+    if (!node.from?.orderBy || node.from.orderBy.length === 0) return items;
+
+    return [...items].sort((a, b) => {
+      for (const order of node.from!.orderBy!) {
+        const aVal = a[order.field];
+        const bVal = b[order.field];
+
+        if (aVal < bVal) return order.dir === "asc" ? -1 : 1;
+        if (aVal > bVal) return order.dir === "asc" ? 1 : -1;
+      }
+      return 0;
+    });
+  }, [items, node.from]);
+
+  // Apply limit if specified
+  const finalItems = useMemo(() => {
+    console.log("final items size", sortedItems.length);
+    if (!node.from?.limit) return sortedItems;
+    return sortedItems.slice(0, node.from.limit);
+  }, [sortedItems, node.from?.limit]);
+
+  // Render function for each item
+  const renderItem = useCallback(
+    ({ item }: { item: any }) => {
+      if (!node.template) {
+        console.log("For node missing template");
+        return null;
+      }
+
+      // Create a scoped context for the item
+      // The template can reference item.field in bindings
+      // For now, we'll render the template as-is
+      // In the future, we can add context support for binding resolution
       return (
-        <RenderViewNode node={node} nodes={nodes} map={map} isRoot={isRoot} />
+        <RenderNode
+          node={node.template}
+          nodes={nodes}
+          map={map}
+          isRoot={false}
+          store={store}
+          itemContext={item}
+          itemVar={node.as || "item"}
+        />
       );
-    case "Text":
-      return <RenderTextNode node={node} nodes={nodes} map={map} />;
-    case "Button":
-      return <RenderButtonNode node={node} nodes={nodes} map={map} />;
-    default:
-      return null;
-  }
+    },
+    [node.template, node.as, nodes, map, store]
+  );
+
+  // Extract key from item
+  const keyExtractor = useCallback(
+    (item: any, index: number) => {
+      if (node.keyExpr) {
+        // Simple path resolution (e.g., "item.id" -> item.id)
+        const path = node.keyExpr.replace(`${node.as || "item"}.`, "");
+        return String(item[path] ?? index);
+      }
+      return item.id ?? String(index);
+    },
+    [node.keyExpr, node.as]
+  );
+
+  return (
+    <Animated.View
+      style={[staticStyle, aStyle] as StyleProp<ViewStyle>}
+      entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
+      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
+    >
+      <FlashList
+        data={finalItems}
+        renderItem={renderItem}
+        keyExtractor={keyExtractor}
+        horizontal={node.horizontal}
+      />
+    </Animated.View>
+  );
 }
+
+// Memoize node rendering to prevent unnecessary re-renders
+const RenderNode = React.memo(
+  function RenderNode({
+    node,
+    nodes,
+    map,
+    isRoot = false,
+    store,
+    itemContext,
+    itemVar,
+  }: {
+    node: NodeState;
+    nodes: Map<string, NodeState>;
+    map: SVMap;
+    isRoot?: boolean;
+    store?: UseBoundStore<StoreApi<SpaceStore>>;
+    itemContext?: any;
+    itemVar?: string;
+  }) {
+    switch (node.type) {
+      case "View":
+      case "ThemedView":
+        return (
+          <RenderViewNode
+            node={node}
+            nodes={nodes}
+            map={map}
+            isRoot={isRoot}
+            store={store}
+            itemContext={itemContext}
+            itemVar={itemVar}
+          />
+        );
+      case "Text":
+        return (
+          <RenderTextNode
+            node={node}
+            nodes={nodes}
+            map={map}
+            store={store}
+            itemContext={itemContext}
+            itemVar={itemVar}
+          />
+        );
+      case "Button":
+        return (
+          <RenderButtonNode
+            node={node}
+            nodes={nodes}
+            map={map}
+            store={store}
+            itemContext={itemContext}
+            itemVar={itemVar}
+          />
+        );
+      case "For":
+        if (!store) {
+          console.warn("For node requires store prop");
+          return null;
+        }
+        return (
+          <RenderForNode node={node} nodes={nodes} map={map} store={store} />
+        );
+      default:
+        return null;
+    }
+  },
+  // Custom equality check - only re-render if node changes
+  (prevProps, nextProps) => {
+    return (
+      prevProps.node === nextProps.node &&
+      prevProps.isRoot === nextProps.isRoot &&
+      prevProps.map === nextProps.map
+      // Note: We don't check nodes Map equality as it changes frequently
+      // but children will re-render naturally when their node changes
+    );
+  }
+);
 
 // -------------------- Main Event-Based Renderer --------------------
 export default function EventBasedRenderer({
   events = [],
+  spaceId = "default",
+  store: externalStore,
 }: {
   events?: SpaceEvent[];
+  spaceId?: string;
+  store?: UseBoundStore<StoreApi<SpaceStore>>;
 }) {
   const [nodes, setNodes] = useState<Map<string, NodeState>>(new Map());
   const [rootId, setRootId] = useState<string | null>(null);
   const sharedValuesRef = useRef<SVMap>({});
+
+  // Create store internally if not provided
+  const internalStore = useSpaceStore(spaceId);
+  const store = externalStore || internalStore;
 
   console.log("EventBasedRenderer render - received events:", events?.length);
 
@@ -517,8 +829,11 @@ export default function EventBasedRenderer({
 
       case "createView": {
         setNodes((prev) => {
+          // Optimization: Only create new Map if node doesn't exist
+          if (prev.has(event.id)) return prev;
+
           const next = new Map(prev);
-          next.set(event.id, {
+          const newNode: NodeState = {
             id: event.id,
             type: event.type,
             style: event.style,
@@ -530,7 +845,18 @@ export default function EventBasedRenderer({
             onPanGestureEnd: event.onPanGestureEnd,
             onPress: event.onPress,
             children: [],
-          });
+          };
+
+          // Add For node specific properties
+          if (event.type === "For") {
+            newNode.from = (event as any).from;
+            newNode.as = (event as any).as;
+            newNode.keyExpr = (event as any).keyExpr;
+            newNode.horizontal = (event as any).horizontal;
+            newNode.template = (event as any).template;
+          }
+
+          next.set(event.id, newNode);
           return next;
         });
         break;
@@ -567,9 +893,15 @@ export default function EventBasedRenderer({
           const child = next.get(event.childId);
 
           if (parent && child) {
-            const newChildren = parent.children.filter(
-              (id) => id !== event.childId
-            );
+            const newChildren = parent.children.filter((childIdOrNode) => {
+              // Handle both string IDs and inline node objects
+              if (typeof childIdOrNode === "string") {
+                return childIdOrNode !== event.childId;
+              } else if (typeof childIdOrNode === "object") {
+                return childIdOrNode.id !== event.childId;
+              }
+              return true;
+            });
             next.set(event.parentId, { ...parent, children: newChildren });
             next.set(event.childId, { ...child, parentId: undefined });
           }
@@ -616,9 +948,15 @@ export default function EventBasedRenderer({
             // Remove from parent first
             const parent = next.get(node.parentId);
             if (parent) {
-              const newChildren = parent.children.filter(
-                (id) => id !== event.id
-              );
+              const newChildren = parent.children.filter((childIdOrNode) => {
+                // Handle both string IDs and inline node objects
+                if (typeof childIdOrNode === "string") {
+                  return childIdOrNode !== event.id;
+                } else if (typeof childIdOrNode === "object") {
+                  return childIdOrNode.id !== event.id;
+                }
+                return true;
+              });
               next.set(node.parentId, { ...parent, children: newChildren });
             }
           }
@@ -648,14 +986,22 @@ export default function EventBasedRenderer({
     }
   }, []);
 
-  // Process all events on mount and when events change
+  // Track how many events we've processed to avoid reprocessing
+  const processedCountRef = useRef(0);
+
+  // Process only NEW events incrementally
   useEffect(() => {
     if (!Array.isArray(events) || events.length === 0) {
-      console.log("No events to process");
       return;
     }
-    console.log("Processing", events.length, "events");
-    events.forEach(processEvent);
+
+    // Only process events we haven't seen yet
+    const newEvents = events.slice(processedCountRef.current);
+    if (newEvents.length === 0) return;
+
+    console.log("Processing", newEvents.length, "new events");
+    newEvents.forEach(processEvent);
+    processedCountRef.current = events.length;
   }, [events, processEvent]);
 
   // Safety check
@@ -682,6 +1028,7 @@ export default function EventBasedRenderer({
       nodes={nodes}
       map={sharedValuesRef.current}
       isRoot={true}
+      store={store}
     />
   );
 }
