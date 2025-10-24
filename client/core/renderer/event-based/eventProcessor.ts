@@ -38,6 +38,42 @@ export function createEventProcessor(
         break;
       }
 
+      case "createMeasureBinding": {
+        // Store the measure binding configuration
+        // The actual measurement will be done by the RenderNode component
+        console.log(
+          "Creating measure binding:",
+          event.nodeId,
+          event.property,
+          "->",
+          event.targetSharedValueId
+        );
+        setNodes((prev) => {
+          const next = new Map(prev);
+          const node = next.get(event.nodeId);
+          if (node) {
+            console.log("Found node for measure binding:", node.id, node.type);
+            // Store measure binding info on the node
+            if (!node.measureBindings) {
+              node.measureBindings = [];
+            }
+            node.measureBindings.push({
+              property: event.property,
+              targetSharedValueId: event.targetSharedValueId,
+            });
+            next.set(event.nodeId, { ...node });
+            console.log(
+              "Measure bindings now:",
+              next.get(event.nodeId)?.measureBindings
+            );
+          } else {
+            console.warn("Node not found for measure binding:", event.nodeId);
+          }
+          return next;
+        });
+        break;
+      }
+
       case "createView": {
         setNodes((prev) => {
           // Optimization: Only create new Map if node doesn't exist
@@ -57,6 +93,30 @@ export function createEventProcessor(
             onPress: event.onPress,
             children: [],
           };
+
+          // Add Selectable specific properties
+          if (event.type === "Selectable") {
+            newNode.stateSharedValueId = (event as any).stateSharedValueId;
+            // JS thread handlers
+            newNode.onPressIn = (event as any).onPressIn;
+            newNode.onPressOut = (event as any).onPressOut;
+            newNode.onPress = (event as any).onPress;
+            newNode.onHoverIn = (event as any).onHoverIn;
+            newNode.onHoverOut = (event as any).onHoverOut;
+            newNode.onSelectableStateChange = (
+              event as any
+            ).onSelectableStateChange;
+            // UI thread (worklet) handlers
+            newNode.onPressIn_UI = (event as any).onPressIn_UI;
+            newNode.onPressOut_UI = (event as any).onPressOut_UI;
+            newNode.onPress_UI = (event as any).onPress_UI;
+            newNode.onHoverIn_UI = (event as any).onHoverIn_UI;
+            newNode.onHoverOut_UI = (event as any).onHoverOut_UI;
+            newNode.onSelectableStateChange_UI = (
+              event as any
+            ).onSelectableStateChange_UI;
+            newNode.disabled = (event as any).disabled;
+          }
 
           // Add For node specific properties
           if (event.type === "For") {

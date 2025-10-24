@@ -1,8 +1,8 @@
-import { appleHoverInEasing, appleHoverOutEasing } from "@/core/easings";
-import { FlashList } from "@shopify/flash-list";
+import { appleHoverInEasing } from "@/core/easings";
+import { LegendList } from "@legendapp/list";
 import { useCallback, useMemo } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
-import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
+import Animated, { makeMutable, SlideInDown } from "react-native-reanimated";
 import type { SpaceStore } from "../../store";
 import { useResolvedStyleColors } from "../../theme/useResolvedSchemaColors";
 import { useSplitAnimatedStyle } from "../styleSplitter";
@@ -71,6 +71,35 @@ export function RenderForNode({
         return null;
       }
 
+      // Create scoped shared values for this template instance if defined
+      // @ts-ignore - sharedValues is not in the schema yet but we support it
+      if (
+        node.template.sharedValues &&
+        Array.isArray(node.template.sharedValues)
+      ) {
+        // @ts-ignore
+        node.template.sharedValues.forEach((sv: any) => {
+          // Substitute template variables in the ID (e.g., "deleteBtnState_{{todo.id}}" -> "deleteBtnState_123")
+          let id = sv.id;
+          const itemVar = node.as || "item";
+
+          // Replace {{varName.property}} with actual values
+          const templateVarRegex = /\{\{([^}]+)\}\}/g;
+          id = id.replace(templateVarRegex, (match: string, path: string) => {
+            if (path.startsWith(itemVar + ".")) {
+              const prop = path.substring(itemVar.length + 1);
+              return String(item[prop] ?? "");
+            }
+            return match;
+          });
+
+          // Create shared value if it doesn't exist
+          if (!map[id]) {
+            map[id] = makeMutable(sv.initial);
+          }
+        });
+      }
+
       // Pass item context to template for data binding
       return (
         <RenderNode
@@ -104,9 +133,10 @@ export function RenderForNode({
     <Animated.View
       style={[staticStyle, aStyle] as StyleProp<ViewStyle>}
       entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
-      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
+      // exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
+      // layout={LinearTransition.springify().damping(17).stiffness(120)}
     >
-      <FlashList
+      <LegendList
         data={finalItems}
         renderItem={renderItem}
         keyExtractor={keyExtractor}

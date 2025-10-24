@@ -1,8 +1,8 @@
 import { Button } from "@/components/button/Button";
-import { appleHoverInEasing, appleHoverOutEasing } from "@/core/easings";
+import { appleHoverInEasing } from "@/core/easings";
 import { useMemo } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
-import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
+import Animated, { SlideInDown } from "react-native-reanimated";
 import { useResolvedStyleColors } from "../../theme/useResolvedSchemaColors";
 import { useSplitAnimatedStyle } from "../styleSplitter";
 import { executeHandlerWithStore } from "./actions";
@@ -46,7 +46,7 @@ export function RenderButtonNode({
   return (
     <Animated.View
       entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
-      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
+      // exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
     >
       <Button
         title={resolvedText || ""}

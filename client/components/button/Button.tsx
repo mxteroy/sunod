@@ -13,6 +13,8 @@ import {
 import {
   interpolate,
   interpolateColor,
+  measure,
+  useAnimatedRef,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
@@ -97,9 +99,30 @@ export const Button: React.FC<ButtonProps> = ({
   // Press animation (scale + shadow fade)
   const progress = useSharedValue(0);
   const hoverProgress = useSharedValue(0);
+  const buttonWidth = useSharedValue(0);
+  const animatedRef = useAnimatedRef<View>();
 
   const animatedStyle = useAnimatedStyle(() => {
-    const scale = interpolate(progress.value, [0, 1], [1, 0.8]);
+    // Measure button width if not yet measured
+    if (buttonWidth.value === 0) {
+      try {
+        const measurement = measure(animatedRef);
+        if (measurement) {
+          buttonWidth.value = measurement.width;
+        }
+      } catch (e) {
+        // Measurement not ready yet
+      }
+    }
+
+    // Calculate scale to reduce by constant 12px instead of percentage
+    // scale = (width - 12) / width
+    const targetScale =
+      buttonWidth.value > 0
+        ? Math.max(0.85, (buttonWidth.value - 12) / buttonWidth.value)
+        : 0.96; // fallback if width not measured yet
+
+    const scale = interpolate(progress.value, [0, 1], [1, targetScale]);
 
     const backgroundColor = interpolateColor(
       hoverProgress.value,
@@ -154,6 +177,7 @@ export const Button: React.FC<ButtonProps> = ({
 
   return (
     <Selectable
+      ref={animatedRef}
       onPress={onPress}
       onSelectableStateChange_UI={onSelectableStateChange_UI}
       disabled={disabled || loading}

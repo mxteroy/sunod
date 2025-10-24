@@ -1,4 +1,10 @@
-import { Easing, runOnUI, withTiming } from "react-native-reanimated";
+import {
+  Easing,
+  interpolate,
+  interpolateColor,
+  runOnUI,
+  withTiming,
+} from "react-native-reanimated";
 import type { StoreApi, UseBoundStore } from "zustand";
 import type { SpaceStore } from "../../store";
 import type { SVMap } from "../FullSchemaRenderer";
@@ -6,12 +12,13 @@ import type { SVMap } from "../FullSchemaRenderer";
 /**
  * Evaluates computed values, shared references, and mathematical operations
  * Runs in worklet context for performance
+ * Returns number or string (for colors)
  */
 export function evalComputedValue(
   value: any,
   map: SVMap,
   eventData: Record<string, number>
-): number {
+): number | string {
   "worklet";
   if (typeof value === "number") return value;
   if (typeof value === "string") return eventData[value] ?? 0;
@@ -54,6 +61,23 @@ export function evalComputedValue(
         return Math.min(...args);
       case "max":
         return Math.max(...args);
+      case "interpolate": {
+        // interpolate(input, inputRange, outputRange)
+        // args[0] = input value
+        // args[1] = array of input range values (must be raw array in schema)
+        // args[2] = array of output range values (must be raw array in schema)
+        const input = args[0] ?? 0;
+        const inputRange = value.args[1]; // Get raw array from schema
+        const outputRange = value.args[2]; // Get raw array from schema
+        return interpolate(input, inputRange, outputRange);
+      }
+      case "interpolateColor": {
+        // interpolateColor(input, inputRange, colorRange)
+        const input = args[0] ?? 0;
+        const inputRange = value.args[1]; // Get raw array from schema
+        const colorRange = value.args[2]; // Get raw array from schema (already resolved by useResolvedStyleColors)
+        return interpolateColor(input, inputRange, colorRange);
+      }
       default:
         return 0;
     }
@@ -82,16 +106,22 @@ export function executeAction(
 
       switch (action.operation) {
         case "add":
-          target.value += computedValue;
+          if (typeof computedValue === "number") {
+            target.value += computedValue;
+          }
           break;
         case "sub":
-          target.value -= computedValue;
+          if (typeof computedValue === "number") {
+            target.value -= computedValue;
+          }
           break;
         case "mul":
-          target.value *= computedValue;
+          if (typeof computedValue === "number") {
+            target.value *= computedValue;
+          }
           break;
         case "div":
-          if (computedValue !== 0) {
+          if (typeof computedValue === "number" && computedValue !== 0) {
             target.value /= computedValue;
           }
           break;
@@ -155,10 +185,24 @@ export function executeAction(
 
     case "animate": {
       const target = map[action.target];
-      if (!target) return;
+      if (!target) {
+        console.log("Animate: target not found", action.target);
+        return;
+      }
 
       const toValue = evalComputedValue(action.to, map, eventData);
       const duration = action.duration || 300;
+
+      console.log(
+        "Animating:",
+        action.target,
+        "from",
+        target.value,
+        "to",
+        toValue,
+        "duration",
+        duration
+      );
 
       let easing = Easing.inOut(Easing.ease);
       switch (action.easing) {
@@ -186,10 +230,12 @@ export function executeAction(
     case "createRecord":
     case "updateRecord":
     case "deleteRecord":
-      // These actions need to run outside worklet context
-      // They will be handled by executeHandlerWithStore
-      console.warn(
-        `Data action ${action.type} called in worklet context - use executeHandlerWithStore instead`
+      // These actions CANNOT run in worklet context
+      // They should only be in onPress/onPressIn/onPressOut handlers that use executeHandlerWithStore
+      console.error(
+        `❌ Data action ${action.type} called in worklet context!`,
+        "Data operations must use executeHandlerWithStore (e.g., in onPress handlers).",
+        "onSelectableStateChange/onHoverIn/onHoverOut run in worklets and cannot perform data operations."
       );
       break;
   }
@@ -204,7 +250,14 @@ export function executeHandler(
   eventData: Record<string, number>
 ) {
   "worklet";
+  console.log(
+    "executeHandler called with",
+    handler.length,
+    "actions",
+    eventData
+  );
   for (const action of handler) {
+    console.log("Executing action:", action.type);
     executeAction(action, map, eventData);
   }
 }

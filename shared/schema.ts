@@ -14,6 +14,14 @@ export const zSharedRef = z.object({
   ref: z.string(),
 });
 
+/** Measure binding: bind a shared value to a node's layout measurement */
+export const zMeasureBinding = z.object({
+  type: z.literal("measure"),
+  nodeId: z.string(), // ID of the node to measure
+  property: z.enum(["width", "height", "x", "y"]), // which measurement to track
+  targetSharedValueId: z.string(), // shared value ID to update with the measurement
+});
+
 /** Computed value argument: can be a number, event param, shared ref, or another computed value */
 export const zComputedValueArg: z.ZodType<any> = z.lazy(() =>
   z.union([
@@ -31,7 +39,18 @@ export const zComputedValueArg: z.ZodType<any> = z.lazy(() =>
 export const zComputedValue: z.ZodType<any> = z.lazy(() =>
   z.object({
     type: z.literal("computed"),
-    op: z.enum(["add", "sub", "mul", "div", "clamp", "lerp", "min", "max"]),
+    op: z.enum([
+      "add",
+      "sub",
+      "mul",
+      "div",
+      "clamp",
+      "lerp",
+      "min",
+      "max",
+      "interpolate", // interpolate(input, inputRange, outputRange)
+      "interpolateColor", // interpolateColor(input, inputRange, outputRange)
+    ]),
     args: z.array(zComputedValueArg),
   })
 );
@@ -52,6 +71,7 @@ export const zSetSharedValueAction = z.object({
   target: z.string(), // shared value ID
   operation: z.enum(["set", "add", "sub", "mul", "div"]),
   value: zEventModifierValue, // can be computed, event param, or literal
+  worklet: z.boolean().optional().default(true), // Run on UI thread by default for shared values
 });
 
 /** Action: Log - Console logging for debugging */
@@ -160,6 +180,7 @@ export const zThemeColorName = z.enum([
   "secondaryHover",
   "accentHover",
   "surfaceHover",
+  "error",
 ]);
 
 /** Theme color reference: { type: "theme", name: "primary" } */
@@ -168,8 +189,18 @@ export const zColorRef = z.object({
   name: zThemeColorName,
 });
 
-/** A color value can be a theme ref, a light/dark override, or a raw string */
-export const zColorInput = z.union([zColorRef, zColorOverride, z.string()]);
+/** Binding for colors (e.g., interpolateColor) */
+export const zBindingColor = z.object({
+  bind: zComputedValue, // Only computed values (like interpolateColor) can bind colors
+});
+
+/** A color value can be a theme ref, a light/dark override, a raw string, or a binding */
+export const zColorInput = z.union([
+  zColorRef,
+  zColorOverride,
+  z.string(),
+  zBindingColor,
+]);
 
 // ───────────────────────────────────────────────────────────────────────────
 
@@ -281,6 +312,29 @@ export const zView = z.object({
   onPress: zActionHandler.optional(),
 });
 
+export const zSelectable = z.object({
+  type: z.literal("Selectable"),
+  id: z.string(),
+  style: zStyle.optional(),
+  children: z.array(z.lazy(() => zNode)).optional(),
+  stateSharedValueId: z.string().optional(), // ID of a shared value to store SelectableState (0=DEFAULT, 1=HOVERED, 2=PRESSED)
+  // JS thread handlers (for data operations)
+  onPressIn: zActionHandler.optional(),
+  onPressOut: zActionHandler.optional(),
+  onPress: zActionHandler.optional(),
+  onHoverIn: zActionHandler.optional(),
+  onHoverOut: zActionHandler.optional(),
+  onSelectableStateChange: zActionHandler.optional(), // Triggered on any state change with 'state' param
+  // UI thread handlers (worklets - for animations)
+  onPressIn_UI: zActionHandler.optional(),
+  onPressOut_UI: zActionHandler.optional(),
+  onPress_UI: zActionHandler.optional(),
+  onHoverIn_UI: zActionHandler.optional(),
+  onHoverOut_UI: zActionHandler.optional(),
+  onSelectableStateChange_UI: zActionHandler.optional(), // Worklet version for 60fps animations
+  disabled: z.boolean().optional(),
+});
+
 // Contains a backgroundColor
 export const zThemedView = z.object({
   type: z.literal("ThemedView"),
@@ -380,6 +434,7 @@ export const zFor = z.object({
 /** Node union */
 export const zNode: z.ZodType<any> = z.discriminatedUnion("type", [
   zView,
+  zSelectable,
   zThemedView,
   zText,
   zButton,
@@ -419,6 +474,7 @@ export type BindingNum = z.infer<typeof zBindingNum>;
 export type Style = z.infer<typeof zStyle>;
 export type TextStyle = z.infer<typeof zTextStyle>;
 export type ViewNode = z.infer<typeof zView>;
+export type SelectableNode = z.infer<typeof zSelectable>;
 export type ThemedViewNode = z.infer<typeof zThemedView>;
 export type TextNode = z.infer<typeof zText>;
 export type ButtonNode = z.infer<typeof zButton>;
@@ -441,6 +497,14 @@ export const zCreateSharedValueEvent = z.object({
   initial: z.union([z.number(), z.string(), z.boolean()]),
 });
 
+/** Create a measure binding to track node layout */
+export const zCreateMeasureBindingEvent = z.object({
+  event: z.literal("createMeasureBinding"),
+  nodeId: z.string(), // ID of the node to measure
+  property: z.enum(["width", "height", "x", "y"]), // which measurement to track
+  targetSharedValueId: z.string(), // shared value ID to update with the measurement
+});
+
 /** Update a shared value */
 export const zUpdateSharedValueEvent = z.object({
   event: z.literal("updateSharedValue"),
@@ -454,7 +518,7 @@ export const zUpdateSharedValueEvent = z.object({
 export const zCreateViewEvent = z.object({
   event: z.literal("createView"),
   id: z.string(),
-  type: z.enum(["View", "ThemedView", "Text", "Button", "For"]),
+  type: z.enum(["View", "Selectable", "ThemedView", "Text", "Button", "For"]),
   style: z.union([zStyle, zTextStyle]).optional(),
   // View-specific props
   text: z.string().optional(), // for Text/Button
@@ -465,6 +529,21 @@ export const zCreateViewEvent = z.object({
   onPanGestureChange: zActionHandler.optional(),
   onPanGestureEnd: zActionHandler.optional(),
   onPress: zActionHandler.optional(),
+  // Selectable-specific props (JS thread handlers)
+  stateSharedValueId: z.string().optional(), // for Selectable
+  onPressIn: zActionHandler.optional(), // for Selectable
+  onPressOut: zActionHandler.optional(), // for Selectable
+  onHoverIn: zActionHandler.optional(), // for Selectable
+  onHoverOut: zActionHandler.optional(), // for Selectable
+  onSelectableStateChange: zActionHandler.optional(), // for Selectable
+  // Selectable-specific props (UI thread/worklet handlers)
+  onPressIn_UI: zActionHandler.optional(), // for Selectable
+  onPressOut_UI: zActionHandler.optional(), // for Selectable
+  onPress_UI: zActionHandler.optional(), // for Selectable
+  onHoverIn_UI: zActionHandler.optional(), // for Selectable
+  onHoverOut_UI: zActionHandler.optional(), // for Selectable
+  onSelectableStateChange_UI: zActionHandler.optional(), // for Selectable
+  disabled: z.boolean().optional(), // for Selectable
   // For node specific
   from: zCollectionQuery.optional(),
   as: z.string().optional(),
@@ -526,6 +605,7 @@ export const zBatchEvent = z.object({
     z.union([
       zCreateSharedValueEvent,
       zUpdateSharedValueEvent,
+      zCreateMeasureBindingEvent,
       zCreateViewEvent,
       zAddChildEvent,
       zRemoveChildEvent,
@@ -541,6 +621,7 @@ export const zBatchEvent = z.object({
 export const zSpaceEvent = z.union([
   zCreateSharedValueEvent,
   zUpdateSharedValueEvent,
+  zCreateMeasureBindingEvent,
   zCreateViewEvent,
   zAddChildEvent,
   zRemoveChildEvent,
@@ -552,8 +633,12 @@ export const zSpaceEvent = z.union([
 ]);
 
 // ── Event types ────────────────────────────────────────────────────────────
+export type MeasureBinding = z.infer<typeof zMeasureBinding>;
 export type CreateSharedValueEvent = z.infer<typeof zCreateSharedValueEvent>;
 export type UpdateSharedValueEvent = z.infer<typeof zUpdateSharedValueEvent>;
+export type CreateMeasureBindingEvent = z.infer<
+  typeof zCreateMeasureBindingEvent
+>;
 export type CreateViewEvent = z.infer<typeof zCreateViewEvent>;
 export type AddChildEvent = z.infer<typeof zAddChildEvent>;
 export type RemoveChildEvent = z.infer<typeof zRemoveChildEvent>;

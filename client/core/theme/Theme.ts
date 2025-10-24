@@ -51,6 +51,9 @@ export interface ColorPalette {
 
   /** * The color for surface elements when hovered. */
   surfaceHover: string;
+
+  /** * The color for error states, destructive actions, and danger warnings. */
+  error: string;
 }
 
 interface ThemeModes {
@@ -95,6 +98,7 @@ export const theme: Theme = {
       secondaryHover: "#a9cce3", // Lighter blue
       accentHover: "#1f618d", // Darker blue
       surfaceHover: "#e8e8e8", // Slightly darker white
+      error: "#e74c3c", // Red for errors/destructive actions
     },
     dark: {
       primary: baseColors.blue,
@@ -110,6 +114,7 @@ export const theme: Theme = {
       secondaryHover: "#1f618d", // Darker blue
       accentHover: "#a9cce3", // Lighter blue
       surfaceHover: "#34495e", // Lighter dark gray
+      error: "#ec7063", // Lighter red for dark mode
     },
   },
   analogous: {
@@ -127,6 +132,7 @@ export const theme: Theme = {
       secondaryHover: "#58d68d", // Lighter green
       accentHover: "#1f618d", // Darker blue
       surfaceHover: "#e8e8e8", // Slightly darker white
+      error: "#e74c3c", // Red for errors/destructive actions
     },
     dark: {
       primary: baseColors.blue,
@@ -142,6 +148,7 @@ export const theme: Theme = {
       secondaryHover: "#27ae60", // Darker green
       accentHover: "#abebc6", // Lighter green
       surfaceHover: "#34495e", // Lighter dark gray
+      error: "#ec7063", // Lighter red for dark mode
     },
   },
   triadic: {
@@ -159,6 +166,7 @@ export const theme: Theme = {
       secondaryHover: "#ec7063", // Lighter red
       accentHover: "#f39c12", // Darker yellow
       surfaceHover: "#e8e8e8", // Slightly darker white
+      error: "#e74c3c", // Red for errors/destructive actions
     },
     dark: {
       primary: baseColors.blue,
@@ -174,6 +182,7 @@ export const theme: Theme = {
       secondaryHover: "#c0392b", // Darker red
       accentHover: "#f9e79f", // Lighter yellow
       surfaceHover: "#34495e", // Lighter dark gray
+      error: "#ec7063", // Lighter red for dark mode
     },
   },
 };

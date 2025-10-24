@@ -1,12 +1,15 @@
 // renderer/styleSplit.ts
-import type { Conditional, Expression, NumVal } from "@shared/schema";
-import {
-  type Style as SchemaStyle,
-  type TextStyle as SchemaTextStyle,
+import type {
+  Conditional,
+  Expression,
+  NumVal,
+  Style as SchemaStyle,
+  TextStyle as SchemaTextStyle,
 } from "@shared/schema";
 import { StyleProp, TextStyle, ViewStyle } from "react-native";
 import { SharedValue, useAnimatedStyle } from "react-native-reanimated";
-import type { SVMap } from "./Renderer";
+import { evalComputedValue } from "./event-based/actions";
+import type { SVMap } from "./FullSchemaRenderer";
 
 // ---- tiny worklet-safe type guards ----
 export const isBinding = (v: any): v is { bind: any } => {
@@ -178,9 +181,18 @@ export function splitSchemaStyle(
     }
   }
 
-  // Non-animatable strings: keep static for now (backgroundColor may be theme/token/raw)
+  // backgroundColor: check if it's a binding (animated) or static
+  let animatedBgColor: any = undefined;
   if (style?.backgroundColor != null) {
-    staticOut.backgroundColor = style.backgroundColor;
+    const bgColor = style.backgroundColor;
+    if (isBinding(bgColor)) {
+      // It's animated - will be handled in animatedComputer
+      animatedBgColor = bgColor;
+      hasAnimated = true;
+    } else {
+      // Static color string
+      staticOut.backgroundColor = bgColor;
+    }
   }
 
   // Static string/enum properties (flexDirection, alignItems, justifyContent, etc.)
@@ -240,6 +252,15 @@ export function splitSchemaStyle(
       if (num != null) out[k] = num;
     }
 
+    // backgroundColor: evaluate if animated
+    if (animatedBgColor) {
+      const computed = animatedBgColor.bind;
+      if (computed) {
+        const color = evalComputedValue(computed, map, {});
+        if (color != null) out.backgroundColor = color;
+      }
+    }
+
     // transforms
     if (animatedTransforms.length) {
       out.transform = animatedTransforms.map(({ key, value }) => {
@@ -293,9 +314,18 @@ export function useSplitAnimatedStyle(
     }
   }
 
-  // Non-animatable strings: keep static for now (backgroundColor may be theme/token/raw)
+  // backgroundColor: check if it's a binding (animated) or static
+  let animatedBgColor: any = undefined;
   if (style?.backgroundColor != null) {
-    staticOut.backgroundColor = style.backgroundColor;
+    const bgColor = style.backgroundColor;
+    if (isBinding(bgColor)) {
+      // It's animated - will be handled in useAnimatedStyle
+      animatedBgColor = bgColor;
+      hasAnimated = true;
+    } else {
+      // Static color string
+      staticOut.backgroundColor = bgColor;
+    }
   }
 
   // Static string/enum properties (flexDirection, alignItems, justifyContent, etc.)
@@ -360,6 +390,18 @@ export function useSplitAnimatedStyle(
         console.log(`Reading ${k}:`, v, "->", num);
       }
       if (num != null) out[k] = num;
+    }
+
+    // backgroundColor: evaluate if animated
+    if (animatedBgColor) {
+      const computed = animatedBgColor.bind;
+      if (computed) {
+        const color = evalComputedValue(computed, map, {});
+        if (print) {
+          console.log(`Reading backgroundColor:`, computed, "->", color);
+        }
+        if (color != null) out.backgroundColor = color;
+      }
     }
 
     // transforms - read SharedValues HERE in the worklet

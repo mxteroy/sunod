@@ -1,9 +1,9 @@
 import { ThemedView } from "@/components/ThemedView";
-import { appleHoverInEasing, appleHoverOutEasing } from "@/core/easings";
+import { appleHoverInEasing } from "@/core/easings";
 import { useMemo } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
-import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
+import Animated, { SlideInDown } from "react-native-reanimated";
 import { useResolvedStyleColors } from "../../theme/useResolvedSchemaColors";
 import { useSplitAnimatedStyle } from "../styleSplitter";
 import { executeHandler } from "./actions";
@@ -170,7 +170,7 @@ export function RenderViewNode({
   const AnimatedBody = (
     <Animated.View
       entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
-      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
+      // exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
     >
       {gestures ? (
         <GestureDetector gesture={gestures}>{ViewBody}</GestureDetector>
