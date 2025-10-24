@@ -9,7 +9,7 @@ import type { SVMap } from "../FullSchemaRenderer";
  */
 export interface NodeState {
   id: string;
-  type: "View" | "ThemedView" | "Text" | "Button" | "For";
+  type: "View" | "ThemedView" | "Selectable" | "Text" | "Button" | "For";
   style?: Style | TextStyle;
   text?: string;
   glassEffect?: boolean;
@@ -18,6 +18,21 @@ export interface NodeState {
   onPanGestureChange?: any;
   onPanGestureEnd?: any;
   onPress?: any;
+  // Selectable-specific properties
+  stateSharedValueId?: string;
+  onPressIn?: any;
+  onPressOut?: any;
+  onHoverIn?: any;
+  onHoverOut?: any;
+  onSelectableStateChange?: any;
+  // UI thread (worklet) versions
+  onPressIn_UI?: any;
+  onPressOut_UI?: any;
+  onPress_UI?: any;
+  onHoverIn_UI?: any;
+  onHoverOut_UI?: any;
+  onSelectableStateChange_UI?: any;
+  disabled?: boolean;
   children: (string | NodeState)[]; // child IDs or inline node objects (for templates)
   parentId?: string;
   // For node specific properties
@@ -26,6 +41,11 @@ export interface NodeState {
   keyExpr?: string;
   horizontal?: boolean;
   template?: NodeState;
+  // Measure bindings
+  measureBindings?: {
+    property: "width" | "height" | "x" | "y";
+    targetSharedValueId: string;
+  }[];
 }
 
 /**

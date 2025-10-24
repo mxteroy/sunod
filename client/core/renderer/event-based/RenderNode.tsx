@@ -1,6 +1,7 @@
 import React from "react";
 import { RenderButtonNode } from "./RenderButtonNode";
 import { RenderForNode } from "./RenderForNode";
+import { RenderSelectableNode } from "./RenderSelectableNode";
 import { RenderTextNode } from "./RenderTextNode";
 import { RenderViewNode } from "./RenderViewNode";
 import type { RenderNodeProps } from "./types";
@@ -28,6 +29,17 @@ export const RenderNode = React.memo(
             nodes={nodes}
             map={map}
             isRoot={isRoot}
+            store={store}
+            itemContext={itemContext}
+            itemVar={itemVar}
+          />
+        );
+      case "Selectable":
+        return (
+          <RenderSelectableNode
+            node={node}
+            nodes={nodes}
+            map={map}
             store={store}
             itemContext={itemContext}
             itemVar={itemVar}

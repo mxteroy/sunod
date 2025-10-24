@@ -1,9 +1,9 @@
 import { ThemedText } from "@/components/ThemedText";
-import { appleHoverInEasing, appleHoverOutEasing } from "@/core/easings";
+import { appleHoverInEasing } from "@/core/easings";
 import { useMemo } from "react";
 import type { StyleProp } from "react-native";
 import { TextStyle as RNTextStyle } from "react-native";
-import Animated, { SlideInDown, SlideOutDown } from "react-native-reanimated";
+import Animated, { SlideInDown } from "react-native-reanimated";
 import { useResolvedTextStyleColors } from "../../theme/useResolvedSchemaColors";
 import { useSplitAnimatedStyle } from "../styleSplitter";
 import { resolveTemplateString } from "./templateBinding";
@@ -32,7 +32,7 @@ export function RenderTextNode({
   return (
     <Animated.View
       entering={SlideInDown.duration(400).easing(appleHoverInEasing)}
-      exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
+      // exiting={SlideOutDown.duration(250).easing(appleHoverOutEasing)}
     >
       <ThemedText
         aStyle={[aStyle as StyleProp<RNTextStyle>]}
