@@ -9,7 +9,14 @@ import type { SVMap } from "../FullSchemaRenderer";
  */
 export interface NodeState {
   id: string;
-  type: "View" | "ThemedView" | "Selectable" | "Text" | "Button" | "For";
+  type:
+    | "View"
+    | "ThemedView"
+    | "Selectable"
+    | "Text"
+    | "Button"
+    | "For"
+    | "Grid";
   style?: Style | TextStyle;
   text?: string;
   glassEffect?: boolean;
@@ -41,6 +48,9 @@ export interface NodeState {
   keyExpr?: string;
   horizontal?: boolean;
   template?: NodeState;
+  // Grid node specific properties
+  columns?: number;
+  gap?: number;
   // Measure bindings
   measureBindings?: {
     property: "width" | "height" | "x" | "y";

@@ -3,6 +3,7 @@ import { appleHoverInEasing } from "@/core/easings";
 import { useMemo } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import Animated, { SlideInDown } from "react-native-reanimated";
+import { useAudioAppId } from "../../audio/AudioAppContext";
 import { useResolvedStyleColors } from "../../theme/useResolvedSchemaColors";
 import { useSplitAnimatedStyle } from "../styleSplitter";
 import { executeHandlerWithStore } from "./actions";
@@ -19,6 +20,7 @@ export function RenderButtonNode({
   itemContext,
   itemVar,
 }: RenderNodeProps) {
+  const appId = useAudioAppId();
   const resolvedStyles = useResolvedStyleColors(node.style);
   const { staticStyle, aStyle } = useSplitAnimatedStyle(resolvedStyles, map);
 
@@ -38,7 +40,8 @@ export function RenderButtonNode({
         {},
         store,
         itemContext,
-        itemVar
+        itemVar,
+        appId
       );
     }
   };

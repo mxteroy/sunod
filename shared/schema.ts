@@ -22,11 +22,20 @@ export const zMeasureBinding = z.object({
   targetSharedValueId: z.string(), // shared value ID to update with the measurement
 });
 
-/** Computed value argument: can be a number, event param, shared ref, or another computed value */
+/**
+ * Computed value argument: can be a number, event param, shared ref, or another computed value
+ *
+ * Event parameter names available in gesture handlers:
+ * - onPanGestureChange: x, y, absoluteX, absoluteY, translationX, translationY, velocityX, velocityY, changeX, changeY
+ * - onPanGestureStart: x, y, absoluteX, absoluteY
+ * - onPanGestureEnd: x, y, absoluteX, absoluteY, velocityX, velocityY, translationX, translationY
+ *
+ * Example: Use "x" to get pointer position relative to the view, or "changeX" for delta change per frame
+ */
 export const zComputedValueArg: z.ZodType<any> = z.lazy(() =>
   z.union([
     z.number(), // literal number
-    z.string(), // event parameter name (e.g., "changeX")
+    z.string(), // event parameter name (e.g., "changeX", "x", "translationX")
     z.object({
       type: z.literal("sharedRef"),
       ref: z.string(), // reference to another shared value
@@ -44,6 +53,7 @@ export const zComputedValue: z.ZodType<any> = z.lazy(() =>
       "sub",
       "mul",
       "div",
+      "mod", // modulo operator for wrapping
       "clamp",
       "lerp",
       "min",
@@ -51,7 +61,7 @@ export const zComputedValue: z.ZodType<any> = z.lazy(() =>
       "interpolate", // interpolate(input, inputRange, outputRange)
       "interpolateColor", // interpolateColor(input, inputRange, outputRange)
     ]),
-    args: z.array(zComputedValueArg),
+    args: z.array(zComputedValueArg).min(1),
   })
 );
 
@@ -142,6 +152,37 @@ export const zDeleteRecordAction = z.object({
   id: z.string(), // record ID
 });
 
+/** Action: PlaySound - Play an audio sound */
+export const zPlaySoundAction = z.object({
+  type: z.literal("playSound"),
+  soundId: z.string(), // ID of the sound definition to play
+  volume: zEventModifierValue.optional(), // volume (0-1), can be computed
+  pitch: zEventModifierValue.optional(), // pitch multiplier (0.5-2), can be computed
+});
+
+/** Action: StartTimer - Start an interval timer that executes actions repeatedly */
+export const zStartTimerAction = z.object({
+  type: z.literal("startTimer"),
+  timerId: z.string(), // unique timer ID
+  interval: zEventModifierValue, // milliseconds between executions (can be computed from BPM)
+  actions: z.array(z.lazy(() => zAction)), // actions to execute on each tick
+  worklet: z.boolean().optional(), // if true, run on UI thread (for 60fps animations)
+});
+
+/** Action: StopTimer - Stop a running timer */
+export const zStopTimerAction = z.object({
+  type: z.literal("stopTimer"),
+  timerId: z.string(), // timer ID to stop
+});
+
+/** Action: SetRandomValue - Generate random number and store in shared value */
+export const zSetRandomValueAction = z.object({
+  type: z.literal("setRandomValue"),
+  target: z.string(), // shared value ID to store random result
+  min: z.number().optional().default(0), // minimum value (inclusive)
+  max: z.number().optional().default(1), // maximum value (exclusive)
+});
+
 /** Union of all action types */
 export const zAction: z.ZodType<any> = z.lazy(() =>
   z.union([
@@ -153,6 +194,10 @@ export const zAction: z.ZodType<any> = z.lazy(() =>
     zCreateRecordAction,
     zUpdateRecordAction,
     zDeleteRecordAction,
+    zPlaySoundAction,
+    zStartTimerAction,
+    zStopTimerAction,
+    zSetRandomValueAction,
   ])
 );
 
@@ -289,6 +334,7 @@ export const zStyle = z.object({
       "space-evenly",
     ])
     .optional(),
+  flexWrap: z.enum(["wrap", "nowrap", "wrap-reverse"]).optional(),
   transform: zTransform.optional(),
 });
 
@@ -396,6 +442,35 @@ export const zButton = z.object({
   props: zButtonProps.optional(),
 });
 
+// ── Audio System ───────────────────────────────────────────────────────────
+
+/** Audio oscillator types for sound synthesis */
+export const zOscillatorType = z.enum([
+  "sine",
+  "square",
+  "sawtooth",
+  "triangle",
+]);
+
+/** Sound definition - describes how to synthesize a sound */
+export const zSoundDef = z.object({
+  id: z.string(), // unique sound ID
+  type: z.enum(["oscillator", "noise"]), // synthesis type
+  // Oscillator properties
+  oscillatorType: zOscillatorType.optional(), // waveform shape
+  frequency: z.number().optional(), // Hz (for oscillator)
+  // Noise properties
+  filterType: z.enum(["lowpass", "highpass", "bandpass"]).optional(), // for noise
+  filterFrequency: z.number().optional(), // Hz (for noise filter)
+  filterQ: z.number().optional(), // filter resonance
+  // Envelope (ADSR)
+  attack: z.number().optional().default(0), // seconds
+  decay: z.number().optional().default(0), // seconds
+  sustain: z.number().optional().default(1), // 0-1
+  release: z.number().optional().default(0.1), // seconds
+  duration: z.number().optional().default(0.1), // total duration in seconds
+});
+
 // ── Collections & List Rendering ──────────────────────────────────────────
 
 /** Collection definition - defines the shape of a data collection */
@@ -431,6 +506,17 @@ export const zFor = z.object({
   template: z.lazy(() => zNode), // subtree rendered for each item
 });
 
+/** Grid node - flexible grid layout using flexbox wrap */
+export const zGrid = z.object({
+  type: z.literal("Grid"),
+  id: z.string(),
+  columns: z.number().optional(), // number of columns (calculates width per item)
+  gap: zNumVal.optional(), // gap between items
+  style: zStyle.optional(), // container style
+  children: z.array(z.lazy(() => zNode)).optional(),
+  onPress: zActionHandler.optional(),
+});
+
 /** Node union */
 export const zNode: z.ZodType<any> = z.discriminatedUnion("type", [
   zView,
@@ -439,6 +525,7 @@ export const zNode: z.ZodType<any> = z.discriminatedUnion("type", [
   zText,
   zButton,
   zFor,
+  zGrid,
 ]);
 
 /** Top-level Space document for a single root View */
@@ -446,6 +533,7 @@ export const zSpace = z.object({
   id: z.string(),
   sharedValues: z.array(zSharedValue).default([]),
   collections: z.array(zCollectionDef).default([]), // collection definitions
+  sounds: z.array(zSoundDef).default([]), // sound definitions for audio playback
   root: z.union([zView, zThemedView]),
 });
 
@@ -464,6 +552,10 @@ export type AnimateAction = z.infer<typeof zAnimateAction>;
 export type CreateRecordAction = z.infer<typeof zCreateRecordAction>;
 export type UpdateRecordAction = z.infer<typeof zUpdateRecordAction>;
 export type DeleteRecordAction = z.infer<typeof zDeleteRecordAction>;
+export type PlaySoundAction = z.infer<typeof zPlaySoundAction>;
+export type StartTimerAction = z.infer<typeof zStartTimerAction>;
+export type StopTimerAction = z.infer<typeof zStopTimerAction>;
+export type SetRandomValueAction = z.infer<typeof zSetRandomValueAction>;
 export type Action = z.infer<typeof zAction>;
 export type ActionHandler = z.infer<typeof zActionHandler>;
 
@@ -479,6 +571,8 @@ export type ThemedViewNode = z.infer<typeof zThemedView>;
 export type TextNode = z.infer<typeof zText>;
 export type ButtonNode = z.infer<typeof zButton>;
 export type ForNode = z.infer<typeof zFor>;
+export type GridNode = z.infer<typeof zGrid>;
+export type SoundDef = z.infer<typeof zSoundDef>;
 export type CollectionDef = z.infer<typeof zCollectionDef>;
 export type CollectionQuery = z.infer<typeof zCollectionQuery>;
 export type SpaceDoc = z.infer<typeof zSpace>;
@@ -518,12 +612,23 @@ export const zUpdateSharedValueEvent = z.object({
 export const zCreateViewEvent = z.object({
   event: z.literal("createView"),
   id: z.string(),
-  type: z.enum(["View", "Selectable", "ThemedView", "Text", "Button", "For"]),
+  type: z.enum([
+    "View",
+    "Selectable",
+    "ThemedView",
+    "Text",
+    "Button",
+    "For",
+    "Grid",
+  ]),
   style: z.union([zStyle, zTextStyle]).optional(),
   // View-specific props
   text: z.string().optional(), // for Text/Button
   glassEffect: z.boolean().optional(), // for Button
   props: z.union([zTextProps, zButtonProps]).optional(),
+  // Grid-specific props
+  columns: z.number().optional(), // for Grid
+  gap: zNumVal.optional(), // for Grid
   // Event handlers
   onPanGestureStart: zActionHandler.optional(),
   onPanGestureChange: zActionHandler.optional(),

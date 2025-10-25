@@ -1,13 +1,11 @@
 // renderer/styleSplit.ts
 import type {
-  Conditional,
-  Expression,
   NumVal,
   Style as SchemaStyle,
   TextStyle as SchemaTextStyle,
 } from "@shared/schema";
 import { StyleProp, TextStyle, ViewStyle } from "react-native";
-import { SharedValue, useAnimatedStyle } from "react-native-reanimated";
+import { useAnimatedStyle } from "react-native-reanimated";
 import { evalComputedValue } from "./event-based/actions";
 import type { SVMap } from "./FullSchemaRenderer";
 
@@ -16,100 +14,6 @@ export const isBinding = (v: any): v is { bind: any } => {
   "worklet";
   return !!v && typeof v === "object" && "bind" in v;
 };
-const isSharedRef = (x: any): x is { type: "shared"; ref: string } => {
-  "worklet";
-  return !!x && x.type === "shared";
-};
-const isExpr = (x: any): x is Expression => {
-  "worklet";
-  return !!x && x.type === "expr";
-};
-const isCond = (x: any): x is Conditional => {
-  "worklet";
-  return !!x && x.type === "cond";
-};
-
-// ---- core numeric eval we already had (kept worklet-safe) ----
-function getSVValue(map: SVMap, id: string): any {
-  "worklet";
-  const sv = map[id] as SharedValue<any> | undefined;
-  return sv ? sv.value : undefined;
-}
-function toNumber(val: any): number {
-  "worklet";
-  if (typeof val === "number") return val;
-  if (typeof val === "boolean") return val ? 1 : 0;
-  if (typeof val === "string") {
-    const n = parseFloat(val);
-    if (!Number.isNaN(n)) return n;
-  }
-  return 0;
-}
-function evalNumericSource(
-  src: number | { type: "shared"; ref: string },
-  map: SVMap
-): number {
-  "worklet";
-  if (typeof src === "number") return src;
-  if (isSharedRef(src)) return toNumber(getSVValue(map, src.ref));
-  return 0;
-}
-function evalBinding(binding: any, map: SVMap): number {
-  "worklet";
-  if (isSharedRef(binding)) return toNumber(getSVValue(map, binding.ref));
-  if (isExpr(binding)) {
-    const { op, args } = binding;
-    const vals: number[] = args.map((a: any) =>
-      evalNumericSource(a as any, map)
-    );
-    switch (op) {
-      case "add":
-        return vals.reduce((a, b) => a + b, 0);
-      case "sub":
-        return vals.slice(1).reduce((a, b) => a - b, vals[0] ?? 0);
-      case "mul":
-        return vals.reduce((a, b) => a * b, 1);
-      case "div":
-        return vals
-          .slice(1)
-          .reduce((a, b) => a / (b === 0 ? 1 : b), vals[0] ?? 0);
-      case "clamp": {
-        const [x, min, max] = [vals[0] ?? 0, vals[1] ?? 0, vals[2] ?? 1];
-        return Math.min(Math.max(x, min), max);
-      }
-      case "lerp": {
-        const [a, b, t] = [vals[0] ?? 0, vals[1] ?? 0, vals[2] ?? 0];
-        return a + (b - a) * t;
-      }
-      case "min":
-        return Math.min(...vals);
-      case "max":
-        return Math.max(...vals);
-    }
-  }
-  if (isCond(binding)) {
-    const { left, op, right } = binding.if;
-    const L = evalNumericSource(left as any, map);
-    const R = evalNumericSource(right as any, map);
-    const pass =
-      op === ">"
-        ? L > R
-        : op === ">="
-          ? L >= R
-          : op === "<"
-            ? L < R
-            : op === "<="
-              ? L <= R
-              : op === "=="
-                ? L === R
-                : L !== R; // "!="
-    return pass
-      ? evalNumericSource(binding.then as any, map)
-      : evalNumericSource(binding.else as any, map);
-  }
-  if (typeof binding === "number") return binding;
-  return 0;
-}
 
 export function isNumValAnimated(v: NumVal | undefined): boolean {
   "worklet";
@@ -123,7 +27,11 @@ export function readNumVal(
   "worklet";
   if (v == null) return undefined;
   if (typeof v === "number") return v;
-  if (isBinding(v)) return evalBinding(v.bind as any, map);
+  if (isBinding(v)) {
+    // Use evalComputedValue which handles type: "computed" (not just "expr")
+    const result = evalComputedValue(v.bind as any, map, {});
+    return typeof result === "number" ? result : undefined;
+  }
   return undefined;
 }
 

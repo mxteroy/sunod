@@ -4,6 +4,7 @@ import { useMemo } from "react";
 import type { StyleProp, ViewStyle } from "react-native";
 import { Gesture, GestureDetector } from "react-native-gesture-handler";
 import Animated, { SlideInDown } from "react-native-reanimated";
+import { useAudioAppId } from "../../audio/AudioAppContext";
 import { useResolvedStyleColors } from "../../theme/useResolvedSchemaColors";
 import { useSplitAnimatedStyle } from "../styleSplitter";
 import { executeHandler } from "./actions";
@@ -25,6 +26,7 @@ export function RenderViewNode({
 }: RenderNodeProps) {
   const themed = node.type === "ThemedView";
   const resolvedStyles = useResolvedStyleColors(node.style);
+  const appId = useAudioAppId();
 
   // Create gestures based on node configuration
   const gestures = useMemo(() => {
@@ -46,7 +48,7 @@ export function RenderViewNode({
             absoluteX: e.absoluteX,
             absoluteY: e.absoluteY,
           };
-          executeHandler(node.onPanGestureStart, map, eventData);
+          executeHandler(node.onPanGestureStart, map, eventData, appId);
         });
       }
 
@@ -65,7 +67,7 @@ export function RenderViewNode({
             absoluteX: e.absoluteX,
             absoluteY: e.absoluteY,
           };
-          executeHandler(node.onPanGestureChange, map, eventData);
+          executeHandler(node.onPanGestureChange, map, eventData, appId);
         });
       }
 
@@ -82,7 +84,7 @@ export function RenderViewNode({
             translationX: e.translationX,
             translationY: e.translationY,
           };
-          executeHandler(node.onPanGestureEnd, map, eventData);
+          executeHandler(node.onPanGestureEnd, map, eventData, appId);
         });
       }
 
@@ -92,7 +94,7 @@ export function RenderViewNode({
     if (node.onPress) {
       const tap = Gesture.Tap().onEnd(() => {
         "worklet";
-        executeHandler(node.onPress, map, {});
+        executeHandler(node.onPress, map, {}, appId);
       });
       gestureList.push(tap);
     }
@@ -108,6 +110,7 @@ export function RenderViewNode({
     node.onPanGestureEnd,
     node.onPress,
     map,
+    appId,
   ]);
 
   const { staticStyle, aStyle } = useSplitAnimatedStyle(resolvedStyles, map);
@@ -150,7 +153,7 @@ export function RenderViewNode({
   const ViewBody = (
     <ThemedView
       style={staticStyle as StyleProp<ViewStyle>}
-      {...(themed ? { aStyle: aStyle as StyleProp<ViewStyle> } : {})}
+      aStyle={aStyle as StyleProp<ViewStyle>}
       noTheme={!themed}
     >
       {children}
