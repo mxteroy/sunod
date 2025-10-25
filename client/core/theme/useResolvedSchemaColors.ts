@@ -118,19 +118,24 @@ export function useResolvedStyleColors(style?: SchemaStyle) {
 }
 
 export function useResolvedTextStyleColors(style?: SchemaTextStyle) {
-  // Currently only backgroundColor is a ColorInput on zStyle
-  const bg = useResolveColorInput(style?.backgroundColor);
+  // Resolve both color and backgroundColor
+  const resolvedColor = useResolveColorInput(style?.color);
+  const resolvedBg = useResolveColorInput(style?.backgroundColor);
 
   // Build once (avoid changing object identity if values didn’t change)
   return useMemo(() => {
     if (!style) return style;
 
-    // shallow copy is fine; only backgroundColor changes
+    // shallow copy is fine; only color/backgroundColor changes
     const out: SchemaTextStyle = { ...style };
+    if (style.color !== undefined) {
+      // @ts-ignore - we know this becomes a plain string now
+      out.color = resolvedColor;
+    }
     if (style.backgroundColor !== undefined) {
       // @ts-ignore - we know this becomes a plain string now
-      out.backgroundColor = bg;
+      out.backgroundColor = resolvedBg;
     }
     return out;
-  }, [style, bg]);
+  }, [style, resolvedColor, resolvedBg]);
 }

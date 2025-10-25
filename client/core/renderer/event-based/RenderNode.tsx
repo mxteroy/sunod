@@ -1,6 +1,7 @@
 import React from "react";
 import { RenderButtonNode } from "./RenderButtonNode";
 import { RenderForNode } from "./RenderForNode";
+import { RenderGridNode } from "./RenderGridNode";
 import { RenderSelectableNode } from "./RenderSelectableNode";
 import { RenderTextNode } from "./RenderTextNode";
 import { RenderViewNode } from "./RenderViewNode";
@@ -74,6 +75,17 @@ export const RenderNode = React.memo(
         }
         return (
           <RenderForNode node={node} nodes={nodes} map={map} store={store} />
+        );
+      case "Grid":
+        return (
+          <RenderGridNode
+            node={node}
+            nodes={nodes}
+            map={map}
+            store={store}
+            itemContext={itemContext}
+            itemVar={itemVar}
+          />
         );
       default:
         return null;

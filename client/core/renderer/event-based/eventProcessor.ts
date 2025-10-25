@@ -127,6 +127,12 @@ export function createEventProcessor(
             newNode.template = (event as any).template;
           }
 
+          // Add Grid node specific properties
+          if (event.type === "Grid") {
+            newNode.columns = (event as any).columns;
+            newNode.gap = (event as any).gap;
+          }
+
           next.set(event.id, newNode);
           return next;
         });
