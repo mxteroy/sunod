@@ -2,6 +2,7 @@ import { appleHoverInEasing } from "@/core/easings";
 import { Selectable, SelectableState } from "@/core/Selectable";
 import { useCallback, useMemo } from "react";
 import { SlideInDown } from "react-native-reanimated";
+import { useAudioAppId } from "../../audio/AudioAppContext";
 import { useResolvedStyleColors } from "../../theme/useResolvedSchemaColors";
 import { useSplitAnimatedStyle } from "../styleSplitter";
 import { executeHandler, executeHandlerWithStore } from "./actions";
@@ -51,6 +52,9 @@ export function RenderSelectableNode({
   itemContext,
   itemVar,
 }: RenderNodeProps) {
+  // Get appId from context
+  const appId = useAudioAppId();
+
   // Resolve template variables in the node (including stateSharedValueId and style bindings)
   const resolvedNode = useMemo(
     () => resolveNodeTemplates(node, itemContext, itemVar),
@@ -89,7 +93,12 @@ export function RenderSelectableNode({
         console.log("Executing onSelectableStateChange_UI actions");
         const eventData = { state }; // Pass the state as event data
         // Execute actions on UI thread (worklet context)
-        executeHandler(resolvedNode.onSelectableStateChange_UI, map, eventData);
+        executeHandler(
+          resolvedNode.onSelectableStateChange_UI,
+          map,
+          eventData,
+          appId
+        );
       }
     },
     [
@@ -97,6 +106,7 @@ export function RenderSelectableNode({
       resolvedNode.stateSharedValueId,
       resolvedNode.onSelectableStateChange_UI,
       map,
+      appId,
     ]
   );
 
@@ -115,7 +125,8 @@ export function RenderSelectableNode({
           eventData,
           store,
           itemContext,
-          itemVar
+          itemVar,
+          appId
         );
       }
     },
@@ -126,6 +137,7 @@ export function RenderSelectableNode({
       store,
       itemContext,
       itemVar,
+      appId,
     ]
   );
 
@@ -139,10 +151,11 @@ export function RenderSelectableNode({
         {},
         store,
         itemContext,
-        itemVar
+        itemVar,
+        appId
       );
     };
-  }, [node.onPressIn, map, store, itemContext, itemVar]);
+  }, [node.onPressIn, map, store, itemContext, itemVar, appId]);
 
   const handlePressOut = useMemo(() => {
     if (!node.onPressOut) return undefined;
@@ -153,10 +166,11 @@ export function RenderSelectableNode({
         {},
         store,
         itemContext,
-        itemVar
+        itemVar,
+        appId
       );
     };
-  }, [node.onPressOut, map, store, itemContext, itemVar]);
+  }, [node.onPressOut, map, store, itemContext, itemVar, appId]);
 
   const handlePress = useMemo(() => {
     if (!node.onPress) return undefined;
@@ -167,10 +181,11 @@ export function RenderSelectableNode({
         {},
         store,
         itemContext,
-        itemVar
+        itemVar,
+        appId
       );
     };
-  }, [node.onPress, map, store, itemContext, itemVar]);
+  }, [node.onPress, map, store, itemContext, itemVar, appId]);
 
   const handleHoverIn = useMemo(() => {
     if (!node.onHoverIn) return undefined;
@@ -181,10 +196,11 @@ export function RenderSelectableNode({
         {},
         store,
         itemContext,
-        itemVar
+        itemVar,
+        appId
       );
     };
-  }, [node.onHoverIn, map, store, itemContext, itemVar]);
+  }, [node.onHoverIn, map, store, itemContext, itemVar, appId]);
 
   const handleHoverOut = useMemo(() => {
     if (!node.onHoverOut) return undefined;
@@ -195,60 +211,61 @@ export function RenderSelectableNode({
         {},
         store,
         itemContext,
-        itemVar
+        itemVar,
+        appId
       );
     };
-  }, [node.onHoverOut, map, store, itemContext, itemVar]);
+  }, [node.onHoverOut, map, store, itemContext, itemVar, appId]);
 
   // UI thread (worklet) handlers
   const handlePressIn_UI = useCallback(
     (event: any) => {
       "worklet";
       if (node.onPressIn_UI && map) {
-        executeHandler(node.onPressIn_UI, map, event);
+        executeHandler(node.onPressIn_UI, map, event, appId);
       }
     },
-    [node.onPressIn_UI, map]
+    [node.onPressIn_UI, map, appId]
   );
 
   const handlePressOut_UI = useCallback(
     (event: any) => {
       "worklet";
       if (node.onPressOut_UI && map) {
-        executeHandler(node.onPressOut_UI, map, event);
+        executeHandler(node.onPressOut_UI, map, event, appId);
       }
     },
-    [node.onPressOut_UI, map]
+    [node.onPressOut_UI, map, appId]
   );
 
   const handlePress_UI = useCallback(
     (event: any) => {
       "worklet";
       if (node.onPress_UI && map) {
-        executeHandler(node.onPress_UI, map, event);
+        executeHandler(node.onPress_UI, map, event, appId);
       }
     },
-    [node.onPress_UI, map]
+    [node.onPress_UI, map, appId]
   );
 
   const handleHoverIn_UI = useCallback(
     (event: any) => {
       "worklet";
       if (node.onHoverIn_UI && map) {
-        executeHandler(node.onHoverIn_UI, map, event);
+        executeHandler(node.onHoverIn_UI, map, event, appId);
       }
     },
-    [node.onHoverIn_UI, map]
+    [node.onHoverIn_UI, map, appId]
   );
 
   const handleHoverOut_UI = useCallback(
     (event: any) => {
       "worklet";
       if (node.onHoverOut_UI && map) {
-        executeHandler(node.onHoverOut_UI, map, event);
+        executeHandler(node.onHoverOut_UI, map, event, appId);
       }
     },
-    [node.onHoverOut_UI, map]
+    [node.onHoverOut_UI, map, appId]
   );
 
   // Render children - handles both node IDs (regular) and inline objects (templates)

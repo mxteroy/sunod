@@ -10,6 +10,7 @@ import {
   View,
   ViewStyle,
 } from "react-native";
+import { Gesture } from "react-native-gesture-handler";
 import {
   interpolate,
   interpolateColor,
@@ -95,6 +96,8 @@ export const Button: React.FC<ButtonProps> = ({
   };
 
   const S = sizes[size];
+
+  Gesture.Pan().onChange((e) => {});
 
   // Press animation (scale + shadow fade)
   const progress = useSharedValue(0);

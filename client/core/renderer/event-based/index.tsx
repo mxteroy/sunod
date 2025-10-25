@@ -1,4 +1,7 @@
 import { useEffect, useRef, useState } from "react";
+import { AudioAppContext } from "../../audio/AudioAppContext";
+import { getAudioManager } from "../../audio/AudioManager";
+import { startSoundQueueProcessor } from "../../audio/WorkletAudioBridge";
 import { useSpaceStore } from "../../store";
 import type { SVMap } from "../FullSchemaRenderer";
 import { createEventProcessor } from "./eventProcessor";
@@ -40,6 +43,26 @@ export default function EventBasedRenderer({
   // Track how many events we've processed to avoid reprocessing
   const processedCountRef = useRef(0);
 
+  // Start sound queue processor for worklet-based audio triggers
+  useEffect(() => {
+    console.log("Starting sound queue processor");
+    const cleanup = startSoundQueueProcessor();
+    return cleanup;
+  }, []);
+
+  // Cleanup audio resources for this app when unmounting
+  useEffect(() => {
+    console.log(`🎵 EventBasedRenderer mounted for app: ${spaceId}`);
+
+    return () => {
+      console.log(
+        `🧹 EventBasedRenderer unmounting - cleaning up audio for: ${spaceId}`
+      );
+      const audioManager = getAudioManager();
+      audioManager.cleanupApp(spaceId);
+    };
+  }, [spaceId]);
+
   // Process only NEW events incrementally
   useEffect(() => {
     if (!Array.isArray(events) || events.length === 0) {
@@ -79,12 +102,14 @@ export default function EventBasedRenderer({
   }
 
   return (
-    <RenderNode
-      node={rootNode}
-      nodes={nodes}
-      map={sharedValuesRef.current}
-      isRoot={true}
-      store={store}
-    />
+    <AudioAppContext.Provider value={spaceId}>
+      <RenderNode
+        node={rootNode}
+        nodes={nodes}
+        map={sharedValuesRef.current}
+        isRoot={true}
+        store={store}
+      />
+    </AudioAppContext.Provider>
   );
 }

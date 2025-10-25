@@ -1,6 +1,7 @@
+import { getAudioManager } from "@/core/audio/AudioManager";
 import EventBasedRenderer from "@/core/renderer/EventBasedRenderer";
 import type { SpaceEvent } from "@shared/schema";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { ActivityIndicator, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 import { useSubscription } from "react-relay";
@@ -17,36 +18,63 @@ export default function Test() {
   const [events, setEvents] = useState<SpaceEvent[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const eventsRef = useRef<SpaceEvent[]>([]);
+  const hasReceivedEvents = useRef(false);
 
-  console.log("asdf;lkajsdf;lkajsdfl;kaj");
-  const subscriptionConfig: GraphQLSubscriptionConfig<any> = {
-    subscription,
-    variables: {},
-    onNext: (response) => {
-      if (response?.demoSpaceEvents) {
-        const event = response.demoSpaceEvents as SpaceEvent;
-        console.log("Received event from server:", event.event);
+  console.log("Test component render");
 
-        // Add event to the list
-        eventsRef.current = [...eventsRef.current, event];
-        setEvents([...eventsRef.current]);
+  const subscriptionConfig: GraphQLSubscriptionConfig<any> = useMemo(
+    () => ({
+      subscription,
+      variables: {},
+      onNext: (response) => {
+        if (response?.demoSpaceEvents && !hasReceivedEvents.current) {
+          const data = response.demoSpaceEvents;
 
-        // Hide loading on first event
-        if (loading) {
+          // Check if data has sounds + events structure (new format)
+          // or is just an array of events (old format)
+          let newEvents: SpaceEvent[];
+
+          if (data.sounds && data.events) {
+            // New format: { sounds: [...], events: [...] }
+            console.log(
+              `Received ${data.sounds.length} sounds and ${data.events.length} events from server`
+            );
+
+            // Register sounds with AudioManager with app-specific namespace
+            const audioManager = getAudioManager();
+            audioManager.registerSounds(data.sounds, "test-space");
+            console.log(
+              "✅ Sounds registered with AudioManager for test-space"
+            );
+
+            newEvents = data.events;
+          } else if (Array.isArray(data)) {
+            // Old format: just array of events
+            newEvents = data;
+            console.log(`Received ${newEvents.length} event(s) from server`);
+          } else {
+            // Single event
+            newEvents = [data];
+            console.log(`Received 1 event from server`);
+          }
+
+          // Set events only once to prevent duplicates
+          hasReceivedEvents.current = true;
+          setEvents(newEvents);
           setLoading(false);
         }
-      }
-    },
-    onError: (err) => {
-      console.error("Subscription error:", err);
-      setError(err.message || "Subscription failed");
-      setLoading(false);
-    },
-    onCompleted: () => {
-      console.log("Subscription complete - all events received");
-    },
-  };
+      },
+      onError: (err) => {
+        console.error("Subscription error:", err);
+        setError(err.message || "Subscription failed");
+        setLoading(false);
+      },
+      onCompleted: () => {
+        console.log("Subscription complete - all events received");
+      },
+    }),
+    []
+  ); // Empty deps - only create once
 
   useSubscription(subscriptionConfig);
 
